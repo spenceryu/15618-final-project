@@ -24,7 +24,7 @@ NVCCFLAGS=-O3 -m64 --gpu-architecture compute_35
 OBJS=$(OBJDIR)/main.o  $(OBJDIR)/jpeg.o $(OBJDIR)/jpeg-seq.o
 
 
-.PHONY: dirs clean
+.PHONY: dirs clean lodepng_test
 
 default: $(EXECUTABLE)
 
@@ -35,6 +35,9 @@ dirs:
 clean:
 		rm -rf $(OBJDIR) $(IMGDIR) *~ $(EXECUTABLE) $(LOGS)
 
+lodepng_test:
+		g++ src/lodepng/lodepng.cpp src/load_png.cpp -ansi -pedantic -Wall -Wextra -O3
+
 $(EXECUTABLE): dirs $(OBJS)
 		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
 
@@ -43,3 +46,4 @@ $(OBJDIR)/%.o: src/%.cpp
 
 $(OBJDIR)/%.o: src/%.cu
 		$(NVCC) $< $(NVCCFLAGS) -c -o $@
+
