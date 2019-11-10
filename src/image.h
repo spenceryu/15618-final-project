@@ -1,27 +1,27 @@
-struct pixel_rgba {
+struct PixelRgba {
     unsigned char r;
     unsigned char g;
     unsigned char b;
     unsigned char a;
 }
 
-struct pixel_ycbcr {
+struct PixelYcbcr {
     double y;
     double cb;
     double cr;
 }
 
-struct image_rgb {
-    std::vector<pixel_rgba> pixels;
+struct ImageRgb {
+    std::vector<PixelRgba> pixels;
     int width;
     int height;
 };
 
-typedef struct image_ycbcr {
-    std::vector<pixel_ycbcr> pixels;
+struct ImageYcbcr {
+    std::vector<PixelYcbcr> pixels;
     int width;
     int height;
 };
 
-image_ycbcr convert_rgb_ycbcr(image_rgb input);
-image_rgb convert_ycbcr_rgb(image_ycbcr input);
+ImageYcbcr convert_rgb_ycbcr(ImageRgb& input);
+ImageRgb convert_ycbcr_rgb(ImageYcbcr& input);
