@@ -34,5 +34,11 @@
 # vim files
 .*.sw*
 
-# Image files
-*.png
+# object files
+objs/*
+
+# output image files
+images/*
+
+# executable
+compress
