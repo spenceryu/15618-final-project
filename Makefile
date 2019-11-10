@@ -1,10 +1,10 @@
 EXECUTABLE := compress
 
-CU_FILES   := jpeg.cu
+CU_FILES   := src/jpeg.cu
 
 CU_DEPS    :=
 
-CC_FILES   := main.cpp jpeg-seq.cpp
+CC_FILES   := src/main.cpp src/jpeg-seq.cpp
 
 all: $(EXECUTABLE) $(REFERENCE)
 
@@ -38,8 +38,8 @@ clean:
 $(EXECUTABLE): dirs $(OBJS)
 		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
 
-$(OBJDIR)/%.o: %.cpp
+$(OBJDIR)/%.o: src/%.cpp
 		$(CXX) $< $(CXXFLAGS) -c -o $@
 
-$(OBJDIR)/%.o: %.cu
+$(OBJDIR)/%.o: src/%.cu
 		$(NVCC) $< $(NVCCFLAGS) -c -o $@
