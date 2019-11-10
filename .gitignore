@@ -33,3 +33,6 @@
 
 # vim files
 .*.sw*
+
+# Image files
+*.png
