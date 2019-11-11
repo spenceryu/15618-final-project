@@ -14,14 +14,3 @@ std::vector<PixelYcbcr> DCT(std::vector<PixelYcbcr> pixels, N, bool all);
 // Else, only Y has IDCT performed on it.
 std::vector<pixel_ycbcr> IDCT(std::vector<pixel_ycbcr> pixels, N, bool all);
 
-struct int2 {
-    int x;
-    int y;
-}
-
-// Convert from (x,y) given size NxN array to vectorized idx
-int sub2ind(N, x, y);
-
-// Convert from vectorized idx to (x,y) given size NxN array
-int2 ind2sub(N, idx);
-

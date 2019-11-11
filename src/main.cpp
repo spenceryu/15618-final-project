@@ -2,6 +2,8 @@
 #include "stdio.h"
 #include "lodepng/lodepng.h"
 
+#define MACROBLOCK_SIZE 8
+
 void decodeOneStep(const char* filename) {
   std::vector<unsigned char> image; //the raw pixels
   unsigned width, height;
