@@ -1,3 +1,6 @@
+#include "dct.h"
+#include "image.cpp"
+
 // Forward DCT operation for NxN block
 // If <all> set, then YCbCr each have DCT performed on them.
 // Else, only Y has DCT performed on it.
@@ -96,16 +99,4 @@ std::vector<pixel_ycbcr> IDCT(std::vector<pixel_ycbcr> pixels, N, bool all) {
 struct int2 {
     int x;
     int y;
-}
-
-// Convert from (x,y) given size NxN array to vectorized idx
-int sub2ind(N, x, y) {
-    return y*N + x;
-}
-
-// Convert from vectorized idx to (x,y) given size NxN array
-int2 ind2sub(N, idx) {
-    int row = idx / N;
-    int col = idx % N;
-    return new int2(col, row);
 }
