@@ -1,6 +1,9 @@
 #include <vector>
 #include <memory>
 
+#ifndef IMAGE_H
+#define IMAGE_H
+
 struct PixelRgba {
     unsigned char r;
     unsigned char g;
@@ -52,3 +55,5 @@ int sub2ind(int width, int col, int row);
 
 // Convert from vectorized idx to (x,y) given size NxN array
 Coord ind2sub(int width, int idx);
+
+#endif

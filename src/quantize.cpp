@@ -1,18 +1,20 @@
+#include "quantize.h"
+
 // Quantization per channel for NxN block
 // If <all> set, then YCbCr each have Quantize operation performed on them.
 // Else, only Y has Quantize operation performed on it.
-std::vector<PixelYcbcr> Quantize(std::vector<PixelYcbcr> pixels, N, bool all) {
+std::vector<std::shared_ptr<PixelYcbcr>> quantize(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all) {
 
-    if (N != 8) {
-        fprintf(stderr, "Quantization only supports 8x8 blocks!\n");
+    if (block_size != QUANTIZEBLOCK_SIZE) {
+        fprintf(stderr, "Quantization only supports %dx%d blocks!\n", QUANTIZEBLOCK_SIZE, QUANTIZEBLOCK_SIZE);
         exit(1);
     }
 
-    for (int i = 0; i < N*N; i++) {
-        pixels[i].y = round(pixels[i].y / quant_matrix[i]);
+    for (int i = 0; i < block_size*block_size; i++) {
+        pixels[i]->y = round(pixels[i]->y / quant_matrix[i]);
         if (all) {
-            pixels[i].cr = round(pixels[i].cr / quant_matrix[i]);
-            pixels[i].cb = round(pixels[i].cb / quant_matrix[i]);
+            pixels[i]->cr = round(pixels[i]->cr / quant_matrix[i]);
+            pixels[i]->cb = round(pixels[i]->cb / quant_matrix[i]);
         }
     }
     return pixels;

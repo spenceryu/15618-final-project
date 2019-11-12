@@ -2,7 +2,6 @@
 #define _USE_MATH_DEFINES // Pi
 #endif
 
-#include <vector>
 #include "math.h"
 #include "image.h"
 

@@ -1,4 +1,3 @@
-#include <memory>
 #include "image.h"
 
 #define DEFAULT_ALPHA 1
@@ -64,11 +63,11 @@ std::shared_ptr<ImageRgb> convertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input) {
     return result;
 }
 
-std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(ImageYcbcr& input, int block_size) {
+std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> input, int block_size) {
     std::shared_ptr<ImageBlocks> result(new ImageBlocks());
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks;
-    int blocks_width = (input.width - 1) / block_size + 1;
-    int blocks_height = (input.height - 1) / block_size + 1;
+    int blocks_width = (input->width - 1) / block_size + 1;
+    int blocks_height = (input->height - 1) / block_size + 1;
     for (int i = 0; i < blocks_height; i++) {
         for (int j = 0; j < blocks_width; j++) {
             std::vector<std::shared_ptr<PixelYcbcr>> block;
@@ -76,13 +75,13 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(ImageYcbcr& input, int block_s
             int temp_index;
             int start = sub2ind(block_size, j, i) * block_size * block_size;
             int k = start;
-            while (k - start < block_size * block_size) {
+            while (k - start < block_size * block_size && k < (input->width * input->height)) {
                 std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
-                pixel->y = input.pixels[k]->y;
+                pixel->y = input->pixels[k]->y;
                 pixel->cb = 0;
                 pixel->cr = 0;
                 // get coord relative to current block
-                coord = ind2sub(input.width, k);
+                coord = ind2sub(input->width, k);
                 coord.col -= j * block_size;
                 coord.row -= i * block_size;
                 // only set cb/cr if in top left quadrant of block
@@ -91,11 +90,12 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(ImageYcbcr& input, int block_s
                     temp_coord.col += j * block_size;
                     temp_coord.row = coord.row * 2;
                     temp_coord.row += i * block_size;
-                    temp_index = sub2ind(input.width, temp_coord.col, temp_coord.row);
-                    pixel->cb = input.pixels[temp_index]->cb;
-                    pixel->cr = input.pixels[temp_index]->cr;
+                    temp_index = sub2ind(input->width, temp_coord.col, temp_coord.row);
+                    pixel->cb = input->pixels[temp_index]->cb;
+                    pixel->cr = input->pixels[temp_index]->cr;
                 }
                 block.push_back(pixel);
+                k++;
             }
             blocks.push_back(block);
         }

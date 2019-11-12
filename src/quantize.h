@@ -1,4 +1,7 @@
 #include "math.h"
+#include "image.h"
+
+#define QUANTIZEBLOCK_SIZE 8
 
 // https://en.wikipedia.org/wiki/Quantization_(image_processing)#Frequency_quantization_for_image_compression
 const std::vector<double> quant_matrix = {
@@ -15,5 +18,5 @@ const std::vector<double> quant_matrix = {
 // Quantization per channel for NxN block
 // If <all> set, then YCbCr each have Quantize operation performed on them.
 // Else, only Y has Quantize operation performed on it.
-std::vector<PixelYcbcr> Quantize(std::vector<PixelYcbcr> pixels, N, bool all);
+std::vector<std::shared_ptr<PixelYcbcr>> quantize(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
 
