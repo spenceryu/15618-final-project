@@ -16,10 +16,8 @@ std::vector<std::shared_ptr<PixelYcbcr>> DCT(std::vector<std::shared_ptr<PixelYc
 
             double tmp_y, tmp_cb, tmp_cr;
             tmp_y = 0;
-            if (all) {
-                tmp_cb = 0;
-                tmp_cr = 0;
-            }
+            tmp_cb = 0;
+            tmp_cr = 0;
 
             // Input: f(x,y)
             for (int x = 0; x < block_size; x++) {
@@ -65,10 +63,8 @@ std::vector<std::shared_ptr<PixelYcbcr>> IDCT(std::vector<std::shared_ptr<PixelY
 
             double tmp_y, tmp_cb, tmp_cr;
             tmp_y = 0;
-            if (all) {
-                tmp_cb = 0;
-                tmp_cr = 0;
-            }
+            tmp_cb = 0;
+            tmp_cr = 0;
 
             // Input: F(u,v)
             for (int u = 0; u < block_size; u++) {

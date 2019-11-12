@@ -3,6 +3,7 @@
 #include "lodepng/lodepng.h"
 #include "dct.h"
 #include "quantize.h"
+#include "dpcm.h"
 #include "rle.h"
 
 #define MACROBLOCK_SIZE 8
@@ -33,6 +34,7 @@ void decodeOneStep(const char* filename) {
     for (auto dct : dcts) {
         quantizedBlocks.push_back(quantize(dct, MACROBLOCK_SIZE, true));
     }
+    DPCM(quantizedBlocks);
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
     for (auto quantizedBlock : quantizedBlocks) {
         encodedBlocks.push_back(RLE(quantizedBlock, MACROBLOCK_SIZE));

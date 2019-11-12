@@ -16,13 +16,13 @@ OBJDIR=objs
 IMGDIR=images
 PNGDIR=lodepng
 CXX=g++ -m64
-CXXFLAGS=-O3 -Wall
+CXXFLAGS=-O3 -Wall -std=c++11
 LDFLAGS=-L/usr/local/depot/cuda-8.0/lib64/ -lcudart
 NVCC=nvcc
 NVCCFLAGS=-O3 -m64 --gpu-architecture compute_35
 
 
-OBJS=$(OBJDIR)/main.o  $(OBJDIR)/jpeg.o $(OBJDIR)/jpeg-seq.o $(OBJDIR)/$(PNGDIR)/lodepng.o
+OBJS=$(OBJDIR)/main.o  $(OBJDIR)/jpeg.o $(OBJDIR)/jpeg-seq.o $(OBJDIR)/$(PNGDIR)/lodepng.o $(OBJDIR)/dct.o $(OBJDIR)/image.o $(OBJDIR)/quantize.o $(OBJDIR)/rle.o $(OBJDIR)/dpcm.o
 
 
 .PHONY: default dirs clean lodepng
