@@ -1,45 +1,51 @@
+#include <vector>
+#include <memory>
+
 struct PixelRgba {
     unsigned char r;
     unsigned char g;
     unsigned char b;
     unsigned char a;
-}
+};
 
 struct PixelYcbcr {
     double y;
     double cb;
     double cr;
-}
+};
 
 struct ImageRgb {
-    std::vector<PixelRgba> pixels;
+    std::vector<std::shared_ptr<PixelRgba>> pixels;
     int width;
     int height;
 };
 
 struct ImageYcbcr {
-    std::vector<PixelYcbcr> pixels;
+    std::vector<std::shared_ptr<PixelYcbcr>> pixels;
     int width;
     int height;
 };
 
 struct ImageBlocks {
-    std::vector<std::vector<PixelYcbcr>> blocks;
+    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks;
     int width;
     int height;
 };
 
-ImageYcbcr convert_rgb_ycbcr(ImageRgb& input);
-ImageRgb convert_ycbcr_rgb(ImageYcbcr& input);
+std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height);
+std::vector<unsigned char> convertImageToBytes(std::shared_ptr<ImageRgb> image);
 
-ImageBlocks convert_ycbcr_blocks(ImageYcbcr& input);
+std::shared_ptr<ImageYcbcr> convertRgbToYcbcr(std::shared_ptr<ImageRgb> input);
+std::shared_ptr<ImageRgb> convertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input);
+
+std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> input, int block_size);
 
 // image utils
 
 struct Coord {
     int col;
     int row;
-}
+};
 
 // Convert from (x,y) given size NxN array to vectorized idx
 int sub2ind(int width, int col, int row);
