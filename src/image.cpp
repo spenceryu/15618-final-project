@@ -66,8 +66,8 @@ std::shared_ptr<ImageRgb> convertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input) {
 std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> input, int block_size) {
     std::shared_ptr<ImageBlocks> result(new ImageBlocks());
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks;
-    int blocks_width = (input->width - 1) / block_size + 1;
-    int blocks_height = (input->height - 1) / block_size + 1;
+    int blocks_width = (input->width + block_size - 1) / block_size;
+    int blocks_height = (input->height + block_size - 1) / block_size;
     for (int i = 0; i < blocks_height; i++) {
         for (int j = 0; j < blocks_width; j++) {
             std::vector<std::shared_ptr<PixelYcbcr>> block;
@@ -82,8 +82,8 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
                 pixel->cr = 0;
                 // get coord relative to current block
                 coord = ind2sub(input->width, k);
-                coord.col -= j * block_size;
-                coord.row -= i * block_size;
+                coord.col += j * block_size;
+                coord.row += i * block_size;
                 // only set cb/cr if in top left quadrant of block
                 if (coord.col < (block_size / 2) && coord.row < (block_size / 2)) {
                     temp_coord.col = coord.col * 2;
