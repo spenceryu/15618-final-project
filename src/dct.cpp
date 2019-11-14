@@ -36,6 +36,7 @@ std::vector<std::shared_ptr<PixelYcbcr>> DCT(std::vector<std::shared_ptr<PixelYc
                 }
             }
 
+            F[vectorized_idx_uv] = std::make_shared<PixelYcbcr>();
             F[vectorized_idx_uv]->y = (1/4) * cu * cv * tmp_y;
             if (all) {
                 F[vectorized_idx_uv]->cr = (1/4) * cu * cv * tmp_cr;

@@ -23,22 +23,37 @@ void decodeOneStep(const char* filename) {
     }
 
     //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
+    fprintf(stdout, "convertBytesToImage()...\n");
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
+
+    fprintf(stdout, "convertRgbToYcbcr()...\n");
     std::shared_ptr<ImageYcbcr> imageYcbcr = convertRgbToYcbcr(imageRgb);
+
+    fprintf(stdout, "convertYcbcrToBlocks()...\n");
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
+
+    fprintf(stdout, "DCT()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
     for (auto block : imageBlocks->blocks) {
         dcts.push_back(DCT(block, MACROBLOCK_SIZE, true));
     }
+
+    fprintf(stdout, "quantize()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks;
     for (auto dct : dcts) {
         quantizedBlocks.push_back(quantize(dct, MACROBLOCK_SIZE, true));
     }
+
+    fprintf(stdout, "DPCM()...\n");
     DPCM(quantizedBlocks);
+
+    fprintf(stdout, "RLE()...\n");
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
     for (auto quantizedBlock : quantizedBlocks) {
         encodedBlocks.push_back(RLE(quantizedBlock, MACROBLOCK_SIZE));
     }
+
+    fprintf(stdout, "done!\n");
 
     /* const char* outfile = "images/out.png"; */
     /* error = lodepng::encode(outfile, image, width, height); */
