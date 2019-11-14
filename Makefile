@@ -16,9 +16,11 @@ OBJDIR=objs
 IMGDIR=images
 PNGDIR=lodepng
 CXX=g++ -m64
+CXXFLAGSDEBUG=-ggdb -O0 -Wall -std=c++11
 CXXFLAGS=-O3 -Wall -std=c++11
 LDFLAGS=-L/usr/local/depot/cuda-8.0/lib64/ -lcudart
 NVCC=nvcc
+NVCCFLAGSDEBUG=-g -G -m64 --gpu-architecture compute_35
 NVCCFLAGS=-O3 -m64 --gpu-architecture compute_35
 
 
