@@ -9,7 +9,9 @@
 // run length encoding (codeword => value) to compress the block.
 // AC values are the values in the macroblock where they are not
 // located at (0,0).
-std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block, int block_size) {
+std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block,
+    int block_size) {
+
     std::shared_ptr<EncodedBlock> result(new EncodedBlock());
 
     std::shared_ptr<EncodedBlockColor> result_y(new EncodedBlockColor());
@@ -26,6 +28,52 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     buildTable(block, COLOR_CB, result_cb->freqs, result_cb->encodingTable, block_size);
     encodeValues(block, result_cb, COLOR_CB);
     result->cb = result_cb;
+
+    return result;
+}
+
+std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock> encoded,
+    int block_size) {
+
+    std::vector<std::shared_ptr<PixelYcbcr>> result(block_size * block_size);
+    for (unsigned int i = 0; i < result.size(); i++) {
+        result[i] = std::make_shared<PixelYcbcr()>();
+    }
+
+    /*
+    // Decode y channel
+    unsigned int y_idx = 0;
+    for (RleTuple tup : encoded->y->encoded) {
+        double decoded_val = encoded->y->encodingTable[tup.encoded];
+        char freq = tup.count;
+        for (char c = 0; c < freq; c++) {
+            result[y_idx]->y = decoded_val;
+            y_idx++;
+        }
+    }
+
+    // Decode cr channel
+    unsigned int cr_idx = 0;
+    for (RleTuple tup : encoded->cr->encoded) {
+        double decoded_val = encoded->cr->encodingTable[tup.encoded];
+        char freq = tup.count;
+        for (char c = 0; c < freq; c++) {
+            result[y_idx]->cr = decoded_val;
+            cr_idx++;
+        }
+    }
+
+    // Decode cb channel
+    unsigned int cb_idx = 0;
+    for (RleTuple tup : encoded->cb->encoded) {
+        double decoded_val = encoded->cb->encodingTable[tup.encoded];
+        char freq = tup.count;
+        for (char c = 0; c < freq; c++) {
+            result[cb_idx]->cb = decoded_val;
+            cb_idx++;
+        }
+    }
+    */
 
     return result;
 }

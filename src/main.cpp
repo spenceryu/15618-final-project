@@ -53,17 +53,35 @@ void decodeOneStep(const char* filename) {
         encodedBlocks.push_back(RLE(quantizedBlock, MACROBLOCK_SIZE));
     }
 
-    fprintf(stdout, "done!\n");
+    fprintf(stdout, "done encoding!\n");
+    fprintf(stdout, "==============\n");
+    fprintf(stdout, "now let's undo the process...\n");
 
-    /* const char* outfile = "images/out.png"; */
-    /* error = lodepng::encode(outfile, image, width, height); */
+    fprintf(stdout, "undoing RLE()...\n");
+    /*
+    std::vector<std::shared_ptr<PixelYcbcr>> decodeRleBlocks;
+    for (auto encodedBlock : encodedBlocks) {
+        decodeRleBlocks.push_back(DecodeRLE(encodedBlocks, MACROBLOCK_SIZE));
+    }
+    */
+    fprintf(stdout, "undoing DPCM()...\n");
+    fprintf(stdout, "undoing quantization()...\n");
+    fprintf(stdout, "undoing DCT()...\n");
+    fprintf(stdout, "undoing convertYcbcrToBlocks()...\n");
+    fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
+    fprintf(stdout, "undoing convertBytesToImage()...\n");
 
-    /* //if there's an error, display it */
-    /* if(error) { */
-    /*   std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl; */
-    /* } else { */
-    /*   fprintf(stdout, "success encoding to %s!\n", outfile); */
-    /* } */
+    /*
+    const char* outfile = "images/out.png";
+    error = lodepng::encode(outfile, image, width, height);
+
+    //if there's an error, display it
+    if(error) {
+        std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
+    } else {
+        fprintf(stdout, "success encoding to %s!\n", outfile);
+    }
+    */
 }
 
 int main() {

@@ -26,3 +26,5 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
 std::vector<double> extractChannel(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan);
 void buildTable(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan, std::map<double, char> freq, std::map<char, double> encodingTable, int block_size);
 void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_ptr<EncodedBlockColor> color, int chan);
+
+std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock> encoded, int block_size);

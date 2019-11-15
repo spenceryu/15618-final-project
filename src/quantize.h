@@ -20,3 +20,8 @@ const std::vector<double> quant_matrix = {
 // Else, only Y has Quantize operation performed on it.
 std::vector<std::shared_ptr<PixelYcbcr>> quantize(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
 
+// Undo quantization per channel for NxN block
+// If <all> set, then YCbCr each have undo quantize operation performed on them.
+// Else, only Y has undo quantize operation performed on it.
+std::vector<std::shared_ptr<PixelYcbcr>> unquantize(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
+
