@@ -9,8 +9,7 @@
 // run length encoding (codeword => value) to compress the block.
 // AC values are the values in the macroblock where they are not
 // located at (0,0).
-std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block,
-    int block_size) {
+std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block, int block_size) {
 
     std::shared_ptr<EncodedBlock> result(new EncodedBlock());
 
@@ -32,12 +31,11 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     return result;
 }
 
-std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock> encoded,
-    int block_size) {
+std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock> encoded, int block_size) {
 
     std::vector<std::shared_ptr<PixelYcbcr>> result(block_size * block_size);
     for (unsigned int i = 0; i < result.size(); i++) {
-        result[i] = std::make_shared<PixelYcbcr()>();
+        result[i] = std::make_shared<PixelYcbcr>();
     }
 
     /*

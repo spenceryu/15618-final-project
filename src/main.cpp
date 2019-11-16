@@ -58,14 +58,12 @@ void decodeOneStep(const char* filename) {
     fprintf(stdout, "now let's undo the process...\n");
 
     fprintf(stdout, "undoing RLE()...\n");
-    /*
-    std::vector<std::shared_ptr<PixelYcbcr>> decodeRleBlocks;
+    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> decodedQuantizedBlocks;
     for (auto encodedBlock : encodedBlocks) {
-        decodeRleBlocks.push_back(DecodeRLE(encodedBlocks, MACROBLOCK_SIZE));
+        decodedQuantizedBlocks.push_back(DecodeRLE(encodedBlock, MACROBLOCK_SIZE));
     }
-    */
     fprintf(stdout, "undoing DPCM()...\n");
-    fprintf(stdout, "undoing quantization()...\n");
+    fprintf(stdout, "undoing quantize()...\n");
     fprintf(stdout, "undoing DCT()...\n");
     fprintf(stdout, "undoing convertYcbcrToBlocks()...\n");
     fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
