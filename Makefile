@@ -40,14 +40,18 @@ clean:
 		rm -rf $(OBJDIR) $(IMGDIR) *~ $(EXECUTABLE) $(LOGS)
 
 $(EXECUTABLE): dirs $(OBJS)
-		$(CXX) $(CXXFLAGSDEBUG) -o $@ $(OBJS) $(LDFLAGS)
+		# $(CXX) $(CXXFLAGSDEBUG) -o $@ $(OBJS) $(LDFLAGS)
+		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
 
 $(OBJDIR)/%.o: src/%.cpp
-		$(CXX) $< $(CXXFLAGSDEBUG) -c -o $@
+		# $(CXX) $< $(CXXFLAGSDEBUG) -c -o $@
+		$(CXX) $< $(CXXFLAGS) -c -o $@
 
 $(OBJDIR)/$(PNGDIR)/%.o: src/$(PNGDIR)/%.cpp
-		$(CXX) $< $(CXXFLAGSDEBUG) -c -o $@
+		# $(CXX) $< $(CXXFLAGSDEBUG) -c -o $@
+		$(CXX) $< $(CXXFLAGS) -c -o $@
 
 $(OBJDIR)/%.o: src/%.cu
-		$(NVCC) $< $(NVCCFLAGSDEBUG) -c -o $@
+		# $(NVCC) $< $(NVCCFLAGSDEBUG) -c -o $@
+		$(NVCC) $< $(NVCCFLAGS) -c -o $@
 
