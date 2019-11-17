@@ -38,7 +38,6 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock>
         result[i] = std::make_shared<PixelYcbcr>();
     }
 
-    /*
     // Decode y channel
     unsigned int y_idx = 0;
     for (RleTuple tup : encoded->y->encoded) {
@@ -71,7 +70,6 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock>
             cb_idx++;
         }
     }
-    */
 
     return result;
 }
