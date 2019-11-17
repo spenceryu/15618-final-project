@@ -79,7 +79,11 @@ void decodeOneStep(const char* filename) {
     }
 
     fprintf(stdout, "undoing convertYcbcrToBlocks()...\n");
-    //std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(idcts, MACROBLOCK_SIZE));
+    std::shared_ptr<ImageBlocks> imageBlocksIdct(new ImageBlocks);
+    imageBlocksIdct->blocks = idcts;
+    imageBlocksIdct->width = width;
+    imageBlocksIdct->height = height;
+    std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(imageBlocksIdct, MACROBLOCK_SIZE);
 
     fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
     //std::shared_ptr<ImageRgb> imageRgb = convertYcbcrToRgb(imgFromBlocks);
