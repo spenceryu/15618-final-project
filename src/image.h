@@ -53,6 +53,7 @@ struct Coord {
 
 // Convert from (x,y) given size NxN array to vectorized idx
 int sub2ind(int width, int col, int row);
+int sub2ind(int width, Coord coord);
 
 // Convert from vectorized idx to (x,y) given size NxN array
 Coord ind2sub(int width, int idx);

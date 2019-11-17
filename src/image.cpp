@@ -83,6 +83,47 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
                 pixel->cb = 0;
                 pixel->cr = 0;
                 // get coord relative to current block
+                coord = ind2sub(block_size, k - start);
+                // only set cb/cr if in top left quadrant of block
+                if (coord.col < (block_size / 2) && coord.row < (block_size / 2)) {
+                    // get index into actual image
+                    temp_coord.col = coord.col * 2;
+                    temp_coord.col += j * block_size;
+                    temp_coord.row = coord.row * 2;
+                    temp_coord.row += i * block_size;
+                    temp_index = sub2ind(input->width, temp_coord);
+                    pixel->cb = input->pixels[temp_index]->cb;
+                    pixel->cr = input->pixels[temp_index]->cr;
+                }
+                block.push_back(pixel);
+                k++;
+            }
+            blocks.push_back(block);
+        }
+    }
+    result->blocks = blocks;
+    return result;
+}
+
+/*
+std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> input, int block_size) {
+    std::shared_ptr<ImageYcbcr> result(new ImageYcbcr());
+    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks;
+    int blocks_width = (input->width + block_size - 1) / block_size;
+    int blocks_height = (input->height + block_size - 1) / block_size;
+    for (int i = 0; i < blocks_height; i++) {
+        for (int j = 0; j < blocks_width; j++) {
+            std::vector<std::shared_ptr<PixelYcbcr>> block;
+            Coord coord, temp_coord;
+            int temp_index;
+            int start = sub2ind(block_size, j, i) * block_size * block_size;
+            int k = start;
+            while (k - start < block_size * block_size && k < (input->width * input->height)) {
+                std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
+                pixel->y = input->pixels[k]->y;
+                pixel->cb = 0;
+                pixel->cr = 0;
+                // get coord relative to current block
                 coord = ind2sub(input->width, k);
                 coord.col += j * block_size;
                 coord.row += i * block_size;
@@ -105,6 +146,7 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
     result->blocks = blocks;
     return result;
 }
+*/
 
 std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> input, int block_size) {
     std::shared_ptr<ImageYcbcr> result(new ImageYcbcr);
@@ -140,6 +182,10 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
 // Convert from (x,y) given size NxN array to vectorized idx
 int sub2ind(int width, int col, int row) {
     return row * width + col;
+}
+
+int sub2ind(int width, Coord coord) {
+    return coord.row * width + coord.col;
 }
 
 // Convert from vectorized idx to (x,y) given size NxN array
