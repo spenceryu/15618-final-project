@@ -42,6 +42,7 @@ std::shared_ptr<ImageYcbcr> convertRgbToYcbcr(std::shared_ptr<ImageRgb> input);
 std::shared_ptr<ImageRgb> convertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input);
 
 std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> input, int block_size);
+std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> input, int block_size);
 
 // image utils
 
@@ -52,6 +53,7 @@ struct Coord {
 
 // Convert from (x,y) given size NxN array to vectorized idx
 int sub2ind(int width, int col, int row);
+int sub2ind(int width, Coord coord);
 
 // Convert from vectorized idx to (x,y) given size NxN array
 Coord ind2sub(int width, int idx);
