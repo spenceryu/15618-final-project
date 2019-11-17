@@ -86,6 +86,7 @@ std::vector<std::shared_ptr<PixelYcbcr>> IDCT(std::vector<std::shared_ptr<PixelY
                 }
             }
 
+            f[vectorized_idx_xy] = std::make_shared<PixelYcbcr>();
             f[vectorized_idx_xy]->y = (1/4) * tmp_y;
             if (all) {
                 f[vectorized_idx_xy]->cr = (1/4) * tmp_cr;

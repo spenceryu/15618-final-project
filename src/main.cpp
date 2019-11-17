@@ -62,16 +62,28 @@ void decodeOneStep(const char* filename) {
     for (auto encodedBlock : encodedBlocks) {
         decodedQuantizedBlocks.push_back(DecodeRLE(encodedBlock, MACROBLOCK_SIZE));
     }
+
     fprintf(stdout, "undoing DPCM()...\n");
+    //std::vector<std::vector<PixelYcbcr>> undpcm = unDPCM(decodedQuantizedBlocks);
+
     fprintf(stdout, "undoing quantize()...\n");
+    //std::vector<std::shared_ptr<PixelYcbcr>> unquantized = unquantize(undpcm, MACROBLOCK_SIZE, true);
+
     fprintf(stdout, "undoing DCT()...\n");
+    //std::vector<std::shared_ptr<PixelYcbcr>> idct = IDCT(unquantized, MACROBLOCK_SIZE, true);
+
     fprintf(stdout, "undoing convertYcbcrToBlocks()...\n");
+    //std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlockstoYcbcr(idct, MACROBLOCK_SIZE));
+
     fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
+    //std::shared_ptr<ImageRgb> imageRgb = convertYcbcrToRgb(imgFromBlocks);
+
     fprintf(stdout, "undoing convertBytesToImage()...\n");
+    //std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgb);
 
     /*
     const char* outfile = "images/out.png";
-    error = lodepng::encode(outfile, image, width, height);
+    error = lodepng::encode(outfile, imageRgb, width, height);
 
     //if there's an error, display it
     if(error) {
