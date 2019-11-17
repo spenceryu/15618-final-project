@@ -64,16 +64,22 @@ void decodeOneStep(const char* filename) {
     }
 
     fprintf(stdout, "undoing DPCM()...\n");
-    //unDPCM(decodedQuantizedBlocks);
+    unDPCM(decodedQuantizedBlocks);
 
     fprintf(stdout, "undoing quantize()...\n");
-    //std::vector<std::shared_ptr<PixelYcbcr>> unquantized = unquantize(decodedQuantizedBlocks, MACROBLOCK_SIZE, true);
+    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> unquantizedBlocks;
+    for (auto decodedQuantizedBlock : decodedQuantizedBlocks) {
+        unquantizedBlocks.push_back(unquantize(decodedQuantizedBlock, MACROBLOCK_SIZE, true));
+    }
 
     fprintf(stdout, "undoing DCT()...\n");
-    //std::vector<std::shared_ptr<PixelYcbcr>> idct = IDCT(unquantized, MACROBLOCK_SIZE, true);
+    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> idcts;
+    for (auto unquantized : unquantizedBlocks) {
+        idcts.push_back(IDCT(unquantized, MACROBLOCK_SIZE, true));
+    }
 
     fprintf(stdout, "undoing convertYcbcrToBlocks()...\n");
-    //std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(idct, MACROBLOCK_SIZE));
+    //std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(idcts, MACROBLOCK_SIZE));
 
     fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
     //std::shared_ptr<ImageRgb> imageRgb = convertYcbcrToRgb(imgFromBlocks);
