@@ -86,14 +86,13 @@ void decodeOneStep(const char* filename) {
     std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(imageBlocksIdct, MACROBLOCK_SIZE);
 
     fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
-    //std::shared_ptr<ImageRgb> imageRgb = convertYcbcrToRgb(imgFromBlocks);
+    std::shared_ptr<ImageRgb> imageRgbRecovered = convertYcbcrToRgb(imgFromBlocks);
 
     fprintf(stdout, "undoing convertBytesToImage()...\n");
-    //std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgb);
+    std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgbRecovered);
 
-    /*
     const char* outfile = "images/out.png";
-    error = lodepng::encode(outfile, imageRgb, width, height);
+    error = lodepng::encode(outfile, imgRecovered, width, height);
 
     //if there's an error, display it
     if(error) {
@@ -101,7 +100,6 @@ void decodeOneStep(const char* filename) {
     } else {
         fprintf(stdout, "success encoding to %s!\n", outfile);
     }
-    */
 }
 
 int main() {
