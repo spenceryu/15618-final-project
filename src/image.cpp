@@ -108,31 +108,25 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
 }
 
 std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> input, int block_size) {
-    std::shared_ptr<ImageYcbcr> result(new ImageYcbcr);
-    std::vector<std::shared_ptr<PixelYcbcr>> pixels(input->width * input->height);
+    std::shared_ptr<ImageYcbcr> result(new ImageYcbcr());
+    unsigned int numPixels = input->width * input->height;
+    std::vector<std::shared_ptr<PixelYcbcr>> pixels;
     result->width = input->width;
     result->height = input->height;
-    int blocks_rows = input->blocks.size();
-    int blocks_cols = input->blocks[0].size();
-    for (int i = 0; i < blocks_rows; i++) {
-        int row_offset = i * block_size;
-        for (int j = 0; j < blocks_cols; j++) {
-            int col_offset = j * block_size;
-            int block_idx = i * blocks_cols + j;
-            for (int k = 0; k < block_size * block_size; k++) {
-                Coord block_coord = ind2sub(blocks_cols, k);
-                // Actual coordinates [row, col] in pixel[row][col]
-                int actual_row = row_offset + block_coord.row;
-                int actual_col = col_offset + block_coord.col;
-                int vectorized_actual_coord = actual_row * block_size + actual_col;
-                fprintf(stdout, "vectorized_actual_coord %d block_idx %d k %d blocks_rows %d blocks_cols %d i %d j %d\n", vectorized_actual_coord, block_idx, k, blocks_rows, blocks_cols, i, j);
-                // Map the location in the input to output...
-                pixels[vectorized_actual_coord] = input->blocks[block_idx][k];
-            }
+    for (auto block : input->blocks) {
+        for (int i = 0; i < block_size * block_size && pixels.size() < numPixels; i++) {
+            std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
+            Coord block_coord = ind2sub(block_size, i);
+            block_coord.col /= 2;
+            block_coord.row /= 2;
+            int temp_index = sub2ind(block_size, block_coord);
+            pixel->y = block[i]->y;
+            pixel->cb = block[temp_index]->cb;
+            pixel->cr = block[temp_index]->cr;
+            pixels.push_back(pixel);
         }
     }
     result->pixels = pixels;
-
     return result;
 }
 
