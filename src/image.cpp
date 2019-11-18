@@ -1,6 +1,6 @@
 #include "image.h"
 
-#define DEFAULT_ALPHA 1
+#define DEFAULT_ALPHA 255
 
 std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height) {
     std::shared_ptr<ImageRgb> image(new ImageRgb());

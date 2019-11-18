@@ -8,18 +8,46 @@
 
 #define MACROBLOCK_SIZE 8
 
-void decodeOneStep(const char* filename) {
+void testFnInv(const char* infile, const char* outfile) {
     std::vector<unsigned char> bytes; //the raw pixels
     unsigned int width, height;
 
     //decode
-    unsigned int error = lodepng::decode(bytes, width, height, filename);
+    unsigned int error = lodepng::decode(bytes, width, height, infile);
 
     //if there's an error, display it
     if(error) {
       std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
     } else {
-      fprintf(stdout, "success decoding %s!\n", filename);
+      fprintf(stdout, "success decoding %s!\n", infile);
+    }
+    
+    std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
+    bytes = convertImageToBytes(imageRgb);
+
+
+    error = lodepng::encode(outfile, bytes, width, height);
+
+    //if there's an error, display it
+    if(error) {
+        std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
+    } else {
+        fprintf(stdout, "success encoding to %s!\n", outfile);
+    }
+}
+
+void decodeOneStep(const char* infile, const char* outfile) {
+    std::vector<unsigned char> bytes; //the raw pixels
+    unsigned int width, height;
+
+    //decode
+    unsigned int error = lodepng::decode(bytes, width, height, infile);
+
+    //if there's an error, display it
+    if(error) {
+      std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+    } else {
+      fprintf(stdout, "success decoding %s!\n", infile);
     }
 
     //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
@@ -91,7 +119,6 @@ void decodeOneStep(const char* filename) {
     fprintf(stdout, "undoing convertBytesToImage()...\n");
     std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgbRecovered);
 
-    const char* outfile = "images/out.png";
     error = lodepng::encode(outfile, imgRecovered, width, height);
 
     //if there's an error, display it
@@ -103,6 +130,7 @@ void decodeOneStep(const char* filename) {
 }
 
 int main() {
-    decodeOneStep("raw_images/cookie.png");
+    decodeOneStep("raw_images/cookie.png", "images/cookie.png");
+    /* testFnInv("raw_images/cookie.png", "images/cookie.png"); */
     return 0;
 }
