@@ -1,6 +1,6 @@
 #include "image.h"
 
-#define DEFAULT_ALPHA 1
+#define DEFAULT_ALPHA 255
 
 std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height) {
     std::shared_ptr<ImageRgb> image(new ImageRgb());
@@ -39,7 +39,7 @@ std::shared_ptr<ImageYcbcr> convertRgbToYcbcr(std::shared_ptr<ImageRgb> input) {
     for (auto pixel : input->pixels) {
         std::shared_ptr<PixelYcbcr> new_pixel(new PixelYcbcr());
         new_pixel->y = 16 + (65.738 * pixel->r + 129.057 * pixel->g + 25.064 * pixel->b) / 256;
-        new_pixel->cb = 128 - (-37.945 * pixel->r - 74.494 * pixel->g + 112.439 * pixel->b) / 256;
+        new_pixel->cb = 128 - (37.945 * pixel->r + 74.494 * pixel->g - 112.439 * pixel->b) / 256;
         new_pixel->cr = 128 + (112.439 * pixel->r - 94.154 * pixel->g - 18.285 * pixel->b) / 256;
         new_pixels.push_back(new_pixel);
     }
@@ -55,7 +55,7 @@ std::shared_ptr<ImageRgb> convertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input) {
     for (auto pixel : input->pixels) {
         std::shared_ptr<PixelRgba> new_pixel(new PixelRgba());
         new_pixel->r = (298.082 * pixel->y + 408.583 * pixel->cr) / 256 - 222.921;
-        new_pixel->g = (298.082 * pixel->y - 100.291 * pixel->cb - 208.120 * pixel->cr) / 256 - 135.576;
+        new_pixel->g = (298.082 * pixel->y - 100.291 * pixel->cb - 208.120 * pixel->cr) / 256 + 135.576;
         new_pixel->b = (298.082 * pixel->y + 516.412 * pixel->cb) / 256 - 276.836;
         new_pixels.push_back(new_pixel);
     }
