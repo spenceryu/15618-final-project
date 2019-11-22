@@ -11,8 +11,8 @@ std::vector<std::shared_ptr<PixelYcbcr>> DCT(std::vector<std::shared_ptr<PixelYc
     for (int u = 0; u < block_size; u++) {
         for (int v = 0; v < block_size; v++) {
             int vectorized_idx_uv = sub2ind(block_size, u, v);
-            double cu = (u == 0) ? 1 : (1/sqrt(2));
-            double cv = (v == 0) ? 1 : (1/sqrt(2));
+            double ap = (u > 0) ? (sqrt(2/block_size)): (1/sqrt(block_size));
+            double aq = (v > 0) ? (sqrt(2/block_size)) : (1/sqrt(block_size));
 
             double tmp_y, tmp_cb, tmp_cr;
             tmp_y = 0;
@@ -20,13 +20,13 @@ std::vector<std::shared_ptr<PixelYcbcr>> DCT(std::vector<std::shared_ptr<PixelYc
             tmp_cr = 0;
 
             // Input: f(x,y)
-            for (int x = 0; x < block_size; x++) {
-                for (int y = 0; y < block_size; y++) {
+            for (int x = 0; x < block_size; x++) { // col
+                for (int y = 0; y < block_size; y++) { // row
                     int vectorized_idx_xy = sub2ind(block_size, x, y);
                     std::shared_ptr<PixelYcbcr> f_xy = pixels[vectorized_idx_xy];
 
-                    double xprod = cos((2*x + 1)*u*M_PI/16);
-                    double yprod = cos((2*y + 1)*v*M_PI/16);
+                    double xprod = cos((2*x + 1)*u*M_PI/(2*block_size));
+                    double yprod = cos((2*y + 1)*v*M_PI/(2*block_size));
 
                     tmp_y += ((f_xy->y) * xprod * yprod);
                     if (all) {
@@ -37,16 +37,17 @@ std::vector<std::shared_ptr<PixelYcbcr>> DCT(std::vector<std::shared_ptr<PixelYc
             }
 
             F[vectorized_idx_uv] = std::make_shared<PixelYcbcr>();
-            F[vectorized_idx_uv]->y = (1/4) * cu * cv * tmp_y;
+            F[vectorized_idx_uv]->y = ap * aq * tmp_y;
             if (all) {
-                F[vectorized_idx_uv]->cr = (1/4) * cu * cv * tmp_cr;
-                F[vectorized_idx_uv]->cb = (1/4) * cu * cv * tmp_cb;
+                F[vectorized_idx_uv]->cr = ap * aq * tmp_cr;
+                F[vectorized_idx_uv]->cb = ap * aq * tmp_cb;
             } else {
                 F[vectorized_idx_uv]->cr = 0;
                 F[vectorized_idx_uv]->cb = 0;
             }
         }
     }
+
     return F;
 }
 
@@ -70,8 +71,8 @@ std::vector<std::shared_ptr<PixelYcbcr>> IDCT(std::vector<std::shared_ptr<PixelY
             // Input: F(u,v)
             for (int u = 0; u < block_size; u++) {
                 for (int v = 0; v < block_size; v++) {
-                    double cu = (u == 0) ? 1 : (1/sqrt(2));
-                    double cv = (v == 0) ? 1 : (1/sqrt(2));
+                    double cu = (u > 0) ? 0.5 : (1/sqrt(8));
+                    double cv = (v > 0) ? 0.5 : (1/sqrt(8));
                     int vectorized_idx_uv = sub2ind(block_size, u, v);
                     std::shared_ptr<PixelYcbcr> f_uv = pixels[vectorized_idx_uv];
 
@@ -87,10 +88,13 @@ std::vector<std::shared_ptr<PixelYcbcr>> IDCT(std::vector<std::shared_ptr<PixelY
             }
 
             f[vectorized_idx_xy] = std::make_shared<PixelYcbcr>();
-            f[vectorized_idx_xy]->y = (1/4) * tmp_y;
+            f[vectorized_idx_xy]->y = 0.25 * tmp_y;
             if (all) {
-                f[vectorized_idx_xy]->cr = (1/4) * tmp_cr;
-                f[vectorized_idx_xy]->cb = (1/4) * tmp_cb;
+                f[vectorized_idx_xy]->cr = 0.25 * tmp_cr;
+                f[vectorized_idx_xy]->cb = 0.25 * tmp_cb;
+            } else {
+                f[vectorized_idx_xy]->cr = 0;
+                f[vectorized_idx_xy]->cb = 0;
             }
         }
     }
