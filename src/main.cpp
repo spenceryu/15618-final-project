@@ -1,4 +1,5 @@
 #include <iostream>
+#include <fstream>
 #include "stdio.h"
 #include "lodepng/lodepng.h"
 #include "dct.h"
@@ -23,8 +24,12 @@ void testFnInv(const char* infile, const char* outfile) {
     }
     
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
-    bytes = convertImageToBytes(imageRgb);
+    std::shared_ptr<ImageYcbcr> imageYcbcr = convertRgbToYcbcr(imageRgb);
+    std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
 
+    std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(imageBlocks, MACROBLOCK_SIZE);
+    std::shared_ptr<ImageRgb> imageRgbRecovered = convertYcbcrToRgb(imgFromBlocks);
+    bytes = convertImageToBytes(imageRgbRecovered);
 
     error = lodepng::encode(outfile, bytes, width, height);
 
@@ -36,7 +41,7 @@ void testFnInv(const char* infile, const char* outfile) {
     }
 }
 
-void decodeOneStep(const char* infile, const char* outfile) {
+void decodeOneStep(const char* infile, const char* outfile, const char* compressedFile) {
     std::vector<unsigned char> bytes; //the raw pixels
     unsigned int width, height;
 
@@ -82,6 +87,12 @@ void decodeOneStep(const char* infile, const char* outfile) {
     }
 
     fprintf(stdout, "done encoding!\n");
+    fprintf(stdout, "writing to file...\n");
+    std::ofstream jpegFile(compressedFile);
+    for (const auto &block : encodedBlocks) {
+        jpegFile << block;
+    }
+    fprintf(stdout, "jpeg stored!\n");
     fprintf(stdout, "==============\n");
     fprintf(stdout, "now let's undo the process...\n");
 
@@ -130,7 +141,7 @@ void decodeOneStep(const char* infile, const char* outfile) {
 }
 
 int main() {
-    decodeOneStep("raw_images/cookie.png", "images/cookie.png");
-    /* testFnInv("raw_images/cookie.png", "images/cookie.png"); */
+    /* decodeOneStep("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg"); */
+    testFnInv("raw_images/cookie.png", "images/cookie.png");
     return 0;
 }

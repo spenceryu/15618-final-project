@@ -14,6 +14,7 @@ LOGS	   := logs
 
 OBJDIR=objs
 IMGDIR=images
+COMPDIR=compressed
 PNGDIR=lodepng
 CXX=g++ -m64
 CXXFLAGSDEBUG=-ggdb -O0 -Wall -std=c++11
@@ -35,9 +36,10 @@ dirs:
 		mkdir -p $(OBJDIR)
 		mkdir -p $(OBJDIR)/$(PNGDIR)
 		mkdir -p $(IMGDIR)
+		mkdir -p $(COMPDIR)
 
 clean:
-		rm -rf $(OBJDIR) $(IMGDIR) *~ $(EXECUTABLE) $(LOGS)
+		rm -rf $(OBJDIR) $(IMGDIR) $(COMPDIR) *~ $(EXECUTABLE) $(LOGS)
 
 $(EXECUTABLE): dirs $(OBJS)
 		# $(CXX) $(CXXFLAGSDEBUG) -o $@ $(OBJS) $(LDFLAGS)

@@ -40,5 +40,8 @@ objs/*
 # output image files
 images/*
 
+# compressed image files
+compressed/*
+
 # executable
 compress

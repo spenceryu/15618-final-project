@@ -1,3 +1,4 @@
+#include "stdio.h"
 #include "image.h"
 
 #define DEFAULT_ALPHA 255
@@ -65,8 +66,7 @@ std::shared_ptr<ImageRgb> convertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input) {
 
 std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> input, int block_size) {
     std::shared_ptr<ImageBlocks> result(new ImageBlocks());
-    result->width = input->width;
-    result->height = input->height;
+    int numPixels = input->width * input->height;
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks;
     result->width = input->width;
     result->height = input->height;
@@ -78,10 +78,14 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
             Coord coord, temp_coord;
             int temp_index;
             int start = sub2ind(block_size, j, i) * block_size * block_size;
+            /* fprintf(stdout, "%d, %d, %d\n", i, j, start); */
             int k = start;
-            while (k - start < block_size * block_size && k < (input->width * input->height)) {
+            while (k - start < block_size * block_size && k < numPixels) {
+                /* fprintf(stdout, "%d\n", k); */
                 std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
                 pixel->y = input->pixels[k]->y;
+                pixel->cb = input->pixels[k]->cb;
+                pixel->cb = input->pixels[k]->cr;
                 pixel->cb = 0;
                 pixel->cr = 0;
                 // get coord relative to current block
@@ -120,6 +124,7 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
             block_coord.col /= 2;
             block_coord.row /= 2;
             int temp_index = sub2ind(block_size, block_coord);
+            /* int temp_index = i; */
             pixel->y = block[i]->y;
             pixel->cb = block[temp_index]->cb;
             pixel->cr = block[temp_index]->cr;
