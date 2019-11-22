@@ -117,18 +117,29 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
     std::vector<std::shared_ptr<PixelYcbcr>> pixels;
     result->width = input->width;
     result->height = input->height;
-    for (auto block : input->blocks) {
-        for (int i = 0; i < block_size * block_size && pixels.size() < numPixels; i++) {
-            std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
-            Coord block_coord = ind2sub(block_size, i);
-            block_coord.col /= 2;
-            block_coord.row /= 2;
-            int temp_index = sub2ind(block_size, block_coord);
-            /* int temp_index = i; */
-            pixel->y = block[i]->y;
-            pixel->cb = block[temp_index]->cb;
-            pixel->cr = block[temp_index]->cr;
-            pixels.push_back(pixel);
+    int blocks_width = (input->width + block_size - 1) / block_size;
+    int blocks_height = (input->height + block_size - 1) / block_size;
+    for (int i = 0; i < blocks_height; i++) {
+        // pixels in every row
+        std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> rows(block_size);
+        for (int j = 0; j < blocks_width; j++) {
+            auto block = input->blocks[sub2ind(block_size, j, i)];
+            for (int k = 0; k < block_size * block_size && pixels.size() < numPixels; k++) {
+                std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
+                Coord block_coord = ind2sub(block_size, k);
+                int row = block_coord.row;
+                block_coord.col /= 2;
+                block_coord.row /= 2;
+                int temp_index = sub2ind(block_size, block_coord);
+                pixel->y = block[k]->y;
+                pixel->cb = block[temp_index]->cb;
+                pixel->cr = block[temp_index]->cr;
+                rows[row].push_back(pixel);
+            }
+        }
+        // add all rows to image
+        for (int j = 0; j < block_size; j++) {
+            pixels.insert(pixels.end(), rows[j].begin(), rows[j].end());
         }
     }
     result->pixels = pixels;
