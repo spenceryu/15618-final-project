@@ -66,46 +66,32 @@ std::shared_ptr<ImageRgb> convertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input) {
 
 std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> input, int block_size) {
     std::shared_ptr<ImageBlocks> result(new ImageBlocks());
-    int numPixels = input->width * input->height;
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks;
     result->width = input->width;
     result->height = input->height;
     int blocks_width = (input->width + block_size - 1) / block_size;
     int blocks_height = (input->height + block_size - 1) / block_size;
+    // rows of blocks
     for (int i = 0; i < blocks_height; i++) {
-        for (int j = 0; j < blocks_width; j++) {
-            std::vector<std::shared_ptr<PixelYcbcr>> block;
-            Coord coord, temp_coord;
-            int temp_index;
-            int start = sub2ind(block_size, j, i) * block_size * block_size;
-            /* fprintf(stdout, "%d, %d, %d\n", i, j, start); */
-            int k = start;
-            while (k - start < block_size * block_size && k < numPixels) {
-                /* fprintf(stdout, "%d\n", k); */
+        int start_index = i * block_size * block_size * blocks_width;
+        // blocks in next row of image
+        std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> block_row(blocks_width);
+        // rows of pixels in the row of blocks
+        for (int j = 0; j < block_size; j++) {
+            int row_index = start_index + j * block_size * blocks_width;
+            // pixels in the row of pixels
+            for (int k = 0; k < block_size * blocks_width; k++) {
+                int pixel_index = row_index + k;
                 std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
-                pixel->y = input->pixels[k]->y;
-                pixel->cb = input->pixels[k]->cb;
-                pixel->cb = input->pixels[k]->cr;
-                pixel->cb = 0;
-                pixel->cr = 0;
-                // get coord relative to current block
-                coord = ind2sub(block_size, k - start);
-                // only set cb/cr if in top left quadrant of block
-                if (coord.col < (block_size / 2) && coord.row < (block_size / 2)) {
-                    // get index into actual image
-                    temp_coord.col = coord.col * 2;
-                    temp_coord.col += j * block_size;
-                    temp_coord.row = coord.row * 2;
-                    temp_coord.row += i * block_size;
-                    temp_index = sub2ind(input->width, temp_coord);
-                    pixel->cb = input->pixels[temp_index]->cb;
-                    pixel->cr = input->pixels[temp_index]->cr;
-                }
-                block.push_back(pixel);
-                k++;
+                // TODO check pixel in bounds
+                // TODO downsample cb/cr
+                pixel->y = input->pixels[pixel_index]->y;
+                pixel->cb = input->pixels[pixel_index]->cb;
+                pixel->cr = input->pixels[pixel_index]->cr;
+                block_row[k / block_size].push_back(pixel);
             }
-            blocks.push_back(block);
         }
+        blocks.insert(blocks.end(), block_row.begin(), block_row.end());
     }
     result->blocks = blocks;
     return result;
@@ -113,7 +99,6 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
 
 std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> input, int block_size) {
     std::shared_ptr<ImageYcbcr> result(new ImageYcbcr());
-    unsigned int numPixels = input->width * input->height;
     std::vector<std::shared_ptr<PixelYcbcr>> pixels;
     result->width = input->width;
     result->height = input->height;
@@ -121,25 +106,24 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
     int blocks_height = (input->height + block_size - 1) / block_size;
     for (int i = 0; i < blocks_height; i++) {
         // pixels in every row
-        std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> rows(block_size);
+        std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> pixel_rows(block_size);
         for (int j = 0; j < blocks_width; j++) {
-            auto block = input->blocks[sub2ind(block_size, j, i)];
-            for (int k = 0; k < block_size * block_size && pixels.size() < numPixels; k++) {
+            auto block = input->blocks[sub2ind(blocks_width, j, i)];
+            // TODO deal with pixel bounding
+            // TODO upsample cb/cr
+            for (unsigned int k = 0; k < block.size(); k++) {
                 std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
                 Coord block_coord = ind2sub(block_size, k);
                 int row = block_coord.row;
-                block_coord.col /= 2;
-                block_coord.row /= 2;
-                int temp_index = sub2ind(block_size, block_coord);
                 pixel->y = block[k]->y;
-                pixel->cb = block[temp_index]->cb;
-                pixel->cr = block[temp_index]->cr;
-                rows[row].push_back(pixel);
+                pixel->cb = block[k]->cb;
+                pixel->cr = block[k]->cr;
+                pixel_rows[row].push_back(pixel);
             }
         }
-        // add all rows to image
+        // add all pixel_rows to image
         for (int j = 0; j < block_size; j++) {
-            pixels.insert(pixels.end(), rows[j].begin(), rows[j].end());
+            pixels.insert(pixels.end(), pixel_rows[j].begin(), pixel_rows[j].end());
         }
     }
     result->pixels = pixels;
@@ -147,6 +131,14 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
 }
 
 // image utils
+
+// check if a pixel is in bounds given the block corner and pixel coord in block
+bool pixel_in_bounds(Coord block_corner, Coord coord_in_block, int width, int height) {
+    Coord absolute;
+    absolute.row = block_corner.row + coord_in_block.row;
+    absolute.col = block_corner.col + coord_in_block.col;
+    return (absolute.row < height && absolute.col < width);
+}
 
 // Convert from (x,y) given size NxN array to vectorized idx
 int sub2ind(int width, int col, int row) {
