@@ -44,6 +44,9 @@ std::shared_ptr<ImageRgb> convertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input);
 std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> input, int block_size);
 std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> input, int block_size);
 
+void downsampleCbcr(std::shared_ptr<ImageBlocks> image, int block_size);
+void upsampleCbcr(std::shared_ptr<ImageBlocks> image, int block_size);
+
 // image utils
 
 struct Coord {

@@ -23,9 +23,13 @@ void testFnInv(const char* infile, const char* outfile) {
       fprintf(stdout, "success decoding %s!\n", infile);
     }
     
+    fprintf(stdout, "starting encryption\n");
+
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
     std::shared_ptr<ImageYcbcr> imageYcbcr = convertRgbToYcbcr(imageRgb);
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
+
+    fprintf(stdout, "starting decryption\n");
 
     std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(imageBlocks, MACROBLOCK_SIZE);
     std::shared_ptr<ImageRgb> imageRgbRecovered = convertYcbcrToRgb(imgFromBlocks);
@@ -143,5 +147,6 @@ void decodeOneStep(const char* infile, const char* outfile, const char* compress
 int main() {
     /* decodeOneStep("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg"); */
     testFnInv("raw_images/cookie.png", "images/cookie.png");
+    /* testFnInv("raw_images/cookie_small.png", "images/cookie_small.png"); */
     return 0;
 }

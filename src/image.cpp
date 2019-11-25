@@ -84,7 +84,6 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
                 int pixel_index = row_index + k;
                 std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
                 // TODO check pixel in bounds
-                // TODO downsample cb/cr
                 pixel->y = input->pixels[pixel_index]->y;
                 pixel->cb = input->pixels[pixel_index]->cb;
                 pixel->cr = input->pixels[pixel_index]->cr;
@@ -94,10 +93,12 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
         blocks.insert(blocks.end(), block_row.begin(), block_row.end());
     }
     result->blocks = blocks;
+    downsampleCbcr(result, block_size);
     return result;
 }
 
 std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> input, int block_size) {
+    upsampleCbcr(input, block_size);
     std::shared_ptr<ImageYcbcr> result(new ImageYcbcr());
     std::vector<std::shared_ptr<PixelYcbcr>> pixels;
     result->width = input->width;
@@ -110,7 +111,6 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
         for (int j = 0; j < blocks_width; j++) {
             auto block = input->blocks[sub2ind(blocks_width, j, i)];
             // TODO deal with pixel bounding
-            // TODO upsample cb/cr
             for (unsigned int k = 0; k < block.size(); k++) {
                 std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
                 Coord block_coord = ind2sub(block_size, k);
@@ -128,6 +128,52 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
     }
     result->pixels = pixels;
     return result;
+}
+
+void downsampleCbcr(std::shared_ptr<ImageBlocks> image, int block_size) {
+    for (auto block : image->blocks) {
+        for (unsigned int i = 0; i < block.size(); i++) {
+            Coord coord = ind2sub(block_size, i);
+            if ((coord.row < block_size / 2) && (coord.col < block_size / 2)) {
+                Coord sample_coord;
+                sample_coord.col = coord.col * 2;
+                sample_coord.row = coord.row * 2;
+                int sample_index = sub2ind(block_size, sample_coord);
+                block[i]->cb = block[sample_index]->cb;
+                block[i]->cr = block[sample_index]->cr;
+            } else {
+                block[i]->cb = 0;
+                block[i]->cr = 0;
+            }
+        }
+    }
+}
+
+void upsampleCbcr(std::shared_ptr<ImageBlocks> image, int block_size) {
+    for (auto block : image->blocks) {
+        // restore cb/cr to original locations
+        for (unsigned int i = block.size() - 1; i > 0; i--) {
+            Coord coord = ind2sub(block_size, i);
+            Coord sample_coord;
+            sample_coord.row = coord.row / 2;
+            sample_coord.col = coord.col / 2;
+            int sample_index = sub2ind(block_size, sample_coord);
+            block[i]->cb = block[sample_index]->cb;
+            block[i]->cr = block[sample_index]->cr;
+        }
+        // interpolate lost cb/cr by averaging 2 nearby pixels
+        for (int i = 1; i < block_size - 1; i += 2) {
+            for (int j = 1; j < block_size - 1; j += 2) {
+                int lower_index = sub2ind(block_size, j-1, i-1);
+                int index = sub2ind(block_size, j, i);
+                int upper_index = sub2ind(block_size, j+1, i+1);
+                double cb = (block[lower_index]->cb + block[upper_index]->cb) / 2;
+                double cr = (block[lower_index]->cr + block[upper_index]->cr) / 2;
+                block[index]->cb = cb;
+                block[index]->cr = cr;
+            }
+        }
+    }
 }
 
 // image utils
