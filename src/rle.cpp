@@ -18,6 +18,12 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     encodeValues(block, result_y, COLOR_Y);
     result->y = result_y;
 
+    /*
+    for (RleTuple a: result_y->encoded) {
+        fprintf(stdout, "RleTuple: encoded %d count %d\n", a.encoded, a.count);
+    }
+    */
+
     std::shared_ptr<EncodedBlockColor> result_cr(new EncodedBlockColor());
     buildTable(block, COLOR_CR, result_cr->freqs, result_cr->encodingTable, block_size);
     encodeValues(block, result_cr, COLOR_CR);
@@ -79,13 +85,19 @@ std::vector<double> extractChannel(std::vector<std::shared_ptr<PixelYcbcr>> bloc
     std::vector<double> block_vals;
 
     for (unsigned int i = 0; i < block.size(); i++) {
+        double val;
         if (chan == COLOR_Y) {
-            block_vals.push_back(block[i]->y);
+            val = block[i]->y;
         } else if (chan == COLOR_CR) {
-            block_vals.push_back(block[i]->cr);
+            val = block[i]->cr;
         } else { // chan == COLOR_CB
-            block_vals.push_back(block[i]->cb);
+            val = block[i]->cb;
         }
+
+        if (val == -0.0) {
+            val = 0.0;
+        }
+        block_vals.push_back(val);
     }
 
     return block_vals;
@@ -99,6 +111,13 @@ std::vector<double> extractChannel(std::vector<std::shared_ptr<PixelYcbcr>> bloc
 void buildTable(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan, std::map<double, char> freq, std::map<char, double> encodingTable, int block_size) {
 
     std::vector<double> block_vals = extractChannel(block, chan);
+    /*
+    fprintf(stdout, "Block_vals (chan %d):\n", chan);
+    for (int i = 0; i< block_vals.size(); i++) {
+        fprintf(stdout, "%f ", block_vals[i]);
+    }
+    fprintf(stdout, "\n");
+    */
 
     // Count (value => number of occurrences)
     // i = 0 is a DC value, so skip that.
