@@ -62,10 +62,15 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
         std::shared_ptr<std::map<char, double>> decode_table = y_channel->decode_table;
         std::map<char, double> decode_table_ptr = *(decode_table.get());
         char encoded = tup.encoded;
-        double decoded_val = decode_table_ptr[encoded];
         char freq = tup.count;
-        for (char c = 0; c < freq; c++) {
-            result[y_idx]->y = decoded_val;
+        if (freq > 0) { // AC value
+            double decoded_val = decode_table_ptr[encoded];
+            for (char c = 0; c < freq; c++) {
+                result[y_idx]->y = decoded_val;
+                y_idx++;
+            }
+        } else { // DC value
+            result[y_idx]->y = encoded;
             y_idx++;
         }
     }
@@ -78,10 +83,15 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
         std::shared_ptr<std::map<char, double>> decode_table = cr_channel->decode_table;
         std::map<char, double> decode_table_ptr = *(decode_table.get());
         char encoded = tup.encoded;
-        double decoded_val = decode_table_ptr[encoded];
         char freq = tup.count;
-        for (char c = 0; c < freq; c++) {
-            result[y_idx]->cr = decoded_val;
+        if (freq > 0) { // AC value
+            double decoded_val = decode_table_ptr[encoded];
+            for (char c = 0; c < freq; c++) {
+                result[cr_idx]->cr = decoded_val;
+                cr_idx++;
+            }
+        } else { // DC value
+            result[cr_idx]->cr = encoded;
             cr_idx++;
         }
     }
@@ -96,8 +106,14 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
         char encoded = tup.encoded;
         double decoded_val = decode_table_ptr[encoded];
         char freq = tup.count;
-        for (char c = 0; c < freq; c++) {
-            result[cb_idx]->cb = decoded_val;
+        if (freq > 0) { // AC value
+            double decoded_val = decode_table_ptr[encoded];
+            for (char c = 0; c < freq; c++) {
+                result[cb_idx]->cb = decoded_val;
+                cb_idx++;
+            }
+        } else { // DC value
+            result[cb_idx]->cb = encoded;
             cb_idx++;
         }
     }
@@ -196,6 +212,13 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
     std::vector<double> chan_vals = extractChannel(block, chan);
 
     int n = chan_vals.size();
+    std::shared_ptr<std::vector<RleTuple>> encoded_ptr = color->encoded;
+
+    // Add the 0th value with a count of 0 (should not be RLE encoded)
+    RleTuple firstValue;
+    firstValue.encoded = chan_vals[0];
+    firstValue.count = 0;
+    (*(encoded_ptr.get())).push_back(firstValue);
 
     int curr_idx = 1;
     int curr_run = 1;
@@ -211,7 +234,6 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
             RleTuple rleTuple;
             rleTuple.encoded = curr_val;
             rleTuple.count = curr_run;
-            std::shared_ptr<std::vector<RleTuple>> encoded_ptr = color->encoded;
             (*(encoded_ptr.get())).push_back(rleTuple);
             curr_run = 1;
             curr_val = chan_vals[curr_idx];
