@@ -65,6 +65,12 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
         char freq = tup.count;
         if (freq > 0) { // AC value
             double decoded_val = decode_table_ptr[encoded];
+
+            // TODO: problem - seems like all AC values are 0's
+            if (decoded_val != 0) {
+                fprintf(stdout, "encoded: %d, decoded %f\n", encoded, decoded_val);
+            }
+
             for (char c = 0; c < freq; c++) {
                 result[y_idx]->y = decoded_val;
                 y_idx++;
@@ -104,7 +110,6 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
         std::shared_ptr<std::map<char, double>> decode_table = cb_channel->decode_table;
         std::map<char, double> decode_table_ptr = *(decode_table.get());
         char encoded = tup.encoded;
-        double decoded_val = decode_table_ptr[encoded];
         char freq = tup.count;
         if (freq > 0) { // AC value
             double decoded_val = decode_table_ptr[encoded];
@@ -197,6 +202,12 @@ std::shared_ptr<EncodedBlockColor> buildTable(
         for (double val_to_encode : vals_to_encode) {
             (*(result->encode_table).get())[val_to_encode] = curr_encoding;
             (*(result->decode_table).get())[curr_encoding] = val_to_encode;
+
+            // TODO: problem - seems like all AC values are 0's
+            if (val_to_encode != 0) {
+                fprintf(stdout, "val to encode: %f, encoding: %d\n", val_to_encode, curr_encoding);
+            }
+
             curr_encoding++;
         }
     }
