@@ -13,38 +13,41 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
 
     std::shared_ptr<EncodedBlock> result(new EncodedBlock());
 
-    std::shared_ptr<EncodedBlockColor> result_y(new EncodedBlockColor());
-    buildTable(block, COLOR_Y, result_y->encode_table, result_y->decode_table, block_size);
+    std::shared_ptr<EncodedBlockColor> result_y = buildTable(block, COLOR_Y, block_size);
     encodeValues(block, result_y, COLOR_Y);
     result->y = result_y;
 
     /*
-    for (std::map<char, double>::iterator iter = result_y->decode_table.begin();
-        iter != result_y->decode_table.end(); ++iter) {
+    // Print statement to verify buildTable() is actually writing (fixed now...)
+    std::shared_ptr<std::map<char, double>> tb = result_y->decode_table;
+    std::map<char, double> tb_val = *(tb.get());
+    for (std::map<char, double>::iterator iter = tb_val.begin();
+        iter != tb_val.end(); ++iter) {
         fprintf(stdout, "Encoding: %d (encoded) %f (raw)\n", iter->first, iter->second);
     }
     */
 
     /*
-    for (RleTuple a: result_y->encoded) {
+    // Problem: RleTuple currently returning "encoded 0 count 1"
+    for (RleTuple a: (*(result_y->encoded).get())) {
         fprintf(stdout, "RleTuple: encoded %d count %d\n", a.encoded, a.count);
     }
     */
 
-    std::shared_ptr<EncodedBlockColor> result_cr(new EncodedBlockColor());
-    buildTable(block, COLOR_CR, result_cr->encode_table, result_cr->decode_table, block_size);
+    std::shared_ptr<EncodedBlockColor> result_cr = buildTable(block, COLOR_CR, block_size);
     encodeValues(block, result_cr, COLOR_CR);
     result->cr = result_cr;
 
-    std::shared_ptr<EncodedBlockColor> result_cb(new EncodedBlockColor());
-    buildTable(block, COLOR_CB, result_cb->encode_table, result_cb->decode_table, block_size);
+    std::shared_ptr<EncodedBlockColor> result_cb = buildTable(block, COLOR_CB, block_size);
     encodeValues(block, result_cb, COLOR_CB);
     result->cb = result_cb;
 
     return result;
 }
 
-std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock> encoded, int block_size) {
+std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
+    std::shared_ptr<EncodedBlock> encoded,
+    int block_size) {
 
     std::vector<std::shared_ptr<PixelYcbcr>> result(block_size * block_size);
     for (unsigned int i = 0; i < result.size(); i++) {
@@ -53,8 +56,13 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock>
 
     // Decode y channel
     unsigned int y_idx = 0;
-    for (RleTuple tup : encoded->y->encoded) {
-        double decoded_val = encoded->y->decode_table[tup.encoded];
+    std::shared_ptr<EncodedBlockColor> y_channel = encoded->y;
+    std::shared_ptr<std::vector<RleTuple>> tups = y_channel->encoded;
+    for (RleTuple tup : *(tups.get())) {
+        std::shared_ptr<std::map<char, double>> decode_table = y_channel->decode_table;
+        std::map<char, double> decode_table_ptr = *(decode_table.get());
+        char encoded = tup.encoded;
+        double decoded_val = decode_table_ptr[encoded];
         char freq = tup.count;
         for (char c = 0; c < freq; c++) {
             result[y_idx]->y = decoded_val;
@@ -64,8 +72,13 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock>
 
     // Decode cr channel
     unsigned int cr_idx = 0;
-    for (RleTuple tup : encoded->cr->encoded) {
-        double decoded_val = encoded->cr->decode_table[tup.encoded];
+    std::shared_ptr<EncodedBlockColor> cr_channel = encoded->cr;
+    tups = cr_channel->encoded;
+    for (RleTuple tup : *(tups.get())) {
+        std::shared_ptr<std::map<char, double>> decode_table = cr_channel->decode_table;
+        std::map<char, double> decode_table_ptr = *(decode_table.get());
+        char encoded = tup.encoded;
+        double decoded_val = decode_table_ptr[encoded];
         char freq = tup.count;
         for (char c = 0; c < freq; c++) {
             result[y_idx]->cr = decoded_val;
@@ -75,8 +88,13 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock>
 
     // Decode cb channel
     unsigned int cb_idx = 0;
-    for (RleTuple tup : encoded->cb->encoded) {
-        double decoded_val = encoded->cb->decode_table[tup.encoded];
+    std::shared_ptr<EncodedBlockColor> cb_channel = encoded->cb;
+    tups = cb_channel->encoded;
+    for (RleTuple tup : *(tups.get())) {
+        std::shared_ptr<std::map<char, double>> decode_table = cb_channel->decode_table;
+        std::map<char, double> decode_table_ptr = *(decode_table.get());
+        char encoded = tup.encoded;
+        double decoded_val = decode_table_ptr[encoded];
         char freq = tup.count;
         for (char c = 0; c < freq; c++) {
             result[cb_idx]->cb = decoded_val;
@@ -115,19 +133,17 @@ std::vector<double> extractChannel(std::vector<std::shared_ptr<PixelYcbcr>> bloc
 // Returns updated values into:
 // freqs (map: double => char) and
 // encodingTable (map: char => double)
-void buildTable(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan,
-    std::map<double, char> encode_table, // decoded => encoded
-    std::map<char, double> decode_table, // encoded => decoded
+std::shared_ptr<EncodedBlockColor> buildTable(
+    std::vector<std::shared_ptr<PixelYcbcr>> block,
+    int chan,
     int block_size) {
 
+    std::shared_ptr<EncodedBlockColor> result = std::make_shared<EncodedBlockColor>();
+    result->encoded = std::make_shared<std::vector<RleTuple>>();
+    result->decode_table = std::make_shared<std::map<char,double>>();
+    result->encode_table = std::make_shared<std::map<double,char>>();
+
     std::vector<double> block_vals = extractChannel(block, chan);
-    /*
-    fprintf(stdout, "Block_vals (chan %d):\n", chan);
-    for (unsigned int i = 0; i< block_vals.size(); i++) {
-        fprintf(stdout, "%f ", block_vals[i]);
-    }
-    fprintf(stdout, "\n");
-    */
 
     // Count (value => number of occurrences)
     // i = 0 is a DC value, so skip that.
@@ -138,7 +154,6 @@ void buildTable(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan,
         } else {
             freq[block_vals[i]] = 1;
         }
-        //fprintf(stdout, "freq[block_vals[i]] = freq[%f] = %d\n", block_vals[i], freq[block_vals[i]]);
     }
 
     // Count (number of occurrences => [values])
@@ -151,9 +166,10 @@ void buildTable(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan,
         encoded[key_freq].push_back(key_value);
         key_freqs.push_back(key_freq);
         num_chars++;
-        // fprintf(stdout, "%f encountered %d times\n", key_value, key_freq);
     }
-    std::sort(key_freqs.begin(), key_freqs.end(), std::greater<char>()); // sort in descending order
+
+    // sort in descending order
+    std::sort(key_freqs.begin(), key_freqs.end(), std::greater<char>());
 
     // Condense into final frequency mapping
     // Encoded Value => Value
@@ -163,15 +179,13 @@ void buildTable(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan,
         std::vector<double> vals_to_encode = iter->second;
         // iterate through each key_freq
         for (double val_to_encode : vals_to_encode) {
-            encode_table[val_to_encode] = curr_encoding;
-            decode_table[curr_encoding] = val_to_encode;
-            if (freq[val_to_encode] != 63) {
-            fprintf(stdout, "Chan %d: Encoding %d (enc) as %f (raw) [seen %d times]\n",
-                chan, curr_encoding, val_to_encode, freq[val_to_encode]);
-            }
+            (*(result->encode_table).get())[val_to_encode] = curr_encoding;
+            (*(result->decode_table).get())[curr_encoding] = val_to_encode;
             curr_encoding++;
         }
     }
+
+    return result;
 }
 
 
@@ -197,7 +211,8 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
             RleTuple rleTuple;
             rleTuple.encoded = curr_val;
             rleTuple.count = curr_run;
-            color->encoded.push_back(rleTuple);
+            std::shared_ptr<std::vector<RleTuple>> encoded_ptr = color->encoded;
+            (*(encoded_ptr.get())).push_back(rleTuple);
             curr_run = 1;
         }
     }
@@ -207,7 +222,7 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
         RleTuple rleTuple;
         rleTuple.encoded = chan_vals[n-1];
         rleTuple.count = 1;
-        color->encoded.push_back(rleTuple);
+        (*(color->encoded).get()).push_back(rleTuple);
     }
 }
 
