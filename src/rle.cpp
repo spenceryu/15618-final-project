@@ -18,7 +18,7 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     result->y = result_y;
 
     /*
-    // Print statement to verify buildTable() is actually writing (fixed now...)
+    // Print statement: verify buildTable() is actually writing (fixed now...)
     std::shared_ptr<std::map<char, double>> tb = result_y->decode_table;
     std::map<char, double> tb_val = *(tb.get());
     for (std::map<char, double>::iterator iter = tb_val.begin();
@@ -28,7 +28,7 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     */
 
     /*
-    // Problem: RleTuple currently returning "encoded 0 count 1"
+    // Print statement: verify RleTuples are being encoded (Fixed now...)
     for (RleTuple a: (*(result_y->encoded).get())) {
         fprintf(stdout, "RleTuple: encoded %d count %d\n", a.encoded, a.count);
     }
@@ -204,7 +204,7 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
     // Skip 0th value because it is DC
     while (curr_idx < n - 1) {
         curr_idx++;
-        double val = chan_vals[curr_val];
+        double val = chan_vals[curr_idx];
         if (val == curr_val) {
             curr_run++;
         } else {
@@ -214,15 +214,19 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
             std::shared_ptr<std::vector<RleTuple>> encoded_ptr = color->encoded;
             (*(encoded_ptr.get())).push_back(rleTuple);
             curr_run = 1;
+            curr_val = chan_vals[curr_idx];
         }
     }
 
-    // Edge case: last value may need to be pushed back too
+    // Edge case: pushing back last value
+    // Case 1: last value is different
+    RleTuple rleTuple;
+    rleTuple.encoded = chan_vals[n-1];
     if (chan_vals[n-1] != chan_vals[n-2]) {
-        RleTuple rleTuple;
-        rleTuple.encoded = chan_vals[n-1];
         rleTuple.count = 1;
-        (*(color->encoded).get()).push_back(rleTuple);
+    } else { // Case 2: last value is the same
+        rleTuple.count = curr_run;
     }
+    (*(color->encoded).get()).push_back(rleTuple);
 }
 
