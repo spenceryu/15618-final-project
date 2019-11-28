@@ -14,9 +14,16 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     std::shared_ptr<EncodedBlock> result(new EncodedBlock());
 
     std::shared_ptr<EncodedBlockColor> result_y(new EncodedBlockColor());
-    buildTable(block, COLOR_Y, result_y->freqs, result_y->encodingTable, block_size);
+    buildTable(block, COLOR_Y, result_y->encode_table, result_y->decode_table, block_size);
     encodeValues(block, result_y, COLOR_Y);
     result->y = result_y;
+
+    /*
+    for (std::map<char, double>::iterator iter = result_y->decode_table.begin();
+        iter != result_y->decode_table.end(); ++iter) {
+        fprintf(stdout, "Encoding: %d (encoded) %f (raw)\n", iter->first, iter->second);
+    }
+    */
 
     /*
     for (RleTuple a: result_y->encoded) {
@@ -25,12 +32,12 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     */
 
     std::shared_ptr<EncodedBlockColor> result_cr(new EncodedBlockColor());
-    buildTable(block, COLOR_CR, result_cr->freqs, result_cr->encodingTable, block_size);
+    buildTable(block, COLOR_CR, result_cr->encode_table, result_cr->decode_table, block_size);
     encodeValues(block, result_cr, COLOR_CR);
     result->cr = result_cr;
 
     std::shared_ptr<EncodedBlockColor> result_cb(new EncodedBlockColor());
-    buildTable(block, COLOR_CB, result_cb->freqs, result_cb->encodingTable, block_size);
+    buildTable(block, COLOR_CB, result_cb->encode_table, result_cb->decode_table, block_size);
     encodeValues(block, result_cb, COLOR_CB);
     result->cb = result_cb;
 
@@ -47,7 +54,7 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock>
     // Decode y channel
     unsigned int y_idx = 0;
     for (RleTuple tup : encoded->y->encoded) {
-        double decoded_val = encoded->y->encodingTable[tup.encoded];
+        double decoded_val = encoded->y->decode_table[tup.encoded];
         char freq = tup.count;
         for (char c = 0; c < freq; c++) {
             result[y_idx]->y = decoded_val;
@@ -58,7 +65,7 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock>
     // Decode cr channel
     unsigned int cr_idx = 0;
     for (RleTuple tup : encoded->cr->encoded) {
-        double decoded_val = encoded->cr->encodingTable[tup.encoded];
+        double decoded_val = encoded->cr->decode_table[tup.encoded];
         char freq = tup.count;
         for (char c = 0; c < freq; c++) {
             result[y_idx]->cr = decoded_val;
@@ -69,7 +76,7 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(std::shared_ptr<EncodedBlock>
     // Decode cb channel
     unsigned int cb_idx = 0;
     for (RleTuple tup : encoded->cb->encoded) {
-        double decoded_val = encoded->cb->encodingTable[tup.encoded];
+        double decoded_val = encoded->cb->decode_table[tup.encoded];
         char freq = tup.count;
         for (char c = 0; c < freq; c++) {
             result[cb_idx]->cb = decoded_val;
@@ -108,12 +115,15 @@ std::vector<double> extractChannel(std::vector<std::shared_ptr<PixelYcbcr>> bloc
 // Returns updated values into:
 // freqs (map: double => char) and
 // encodingTable (map: char => double)
-void buildTable(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan, std::map<double, char> freq, std::map<char, double> encodingTable, int block_size) {
+void buildTable(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan,
+    std::map<double, char> encode_table, // decoded => encoded
+    std::map<char, double> decode_table, // encoded => decoded
+    int block_size) {
 
     std::vector<double> block_vals = extractChannel(block, chan);
     /*
     fprintf(stdout, "Block_vals (chan %d):\n", chan);
-    for (int i = 0; i< block_vals.size(); i++) {
+    for (unsigned int i = 0; i< block_vals.size(); i++) {
         fprintf(stdout, "%f ", block_vals[i]);
     }
     fprintf(stdout, "\n");
@@ -121,35 +131,49 @@ void buildTable(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan, std::m
 
     // Count (value => number of occurrences)
     // i = 0 is a DC value, so skip that.
+    std::map<double, char> freq;
     for (unsigned int i = 1; i < block_vals.size(); i++) {
         if (freq.count(block_vals[i])) {
             freq[block_vals[i]] += 1;
         } else {
             freq[block_vals[i]] = 1;
         }
+        //fprintf(stdout, "freq[block_vals[i]] = freq[%f] = %d\n", block_vals[i], freq[block_vals[i]]);
     }
 
     // Count (number of occurrences => [values])
     std::map<char, std::vector<double>> encoded;
+    char num_chars = 0; // number of unique vals to encode in the block
+    std::vector<char> key_freqs;
     for (auto& kv : freq) {
         double key_value = kv.first;
         char key_freq = kv.second;
         encoded[key_freq].push_back(key_value);
+        key_freqs.push_back(key_freq);
+        num_chars++;
+        // fprintf(stdout, "%f encountered %d times\n", key_value, key_freq);
     }
+    std::sort(key_freqs.begin(), key_freqs.end(), std::greater<char>()); // sort in descending order
 
     // Condense into final frequency mapping
+    // Encoded Value => Value
     char curr_encoding = 0;
-    for (int ct = (block_size*block_size); ct < 0; ct--) {
-        if (encoded.count(ct)) {
-            std::vector<double> vals = encoded[ct];
-            std::sort(vals.begin(), vals.end());
-            for (auto& key_value : vals) {
-                encodingTable[curr_encoding] = key_value;
-                curr_encoding++;
+    for (std::map<char, std::vector<double>>::iterator iter = encoded.begin(); iter != encoded.end(); ++iter) {
+        // char key_freq = iter->first;
+        std::vector<double> vals_to_encode = iter->second;
+        // iterate through each key_freq
+        for (double val_to_encode : vals_to_encode) {
+            encode_table[val_to_encode] = curr_encoding;
+            decode_table[curr_encoding] = val_to_encode;
+            if (freq[val_to_encode] != 63) {
+            fprintf(stdout, "Chan %d: Encoding %d (enc) as %f (raw) [seen %d times]\n",
+                chan, curr_encoding, val_to_encode, freq[val_to_encode]);
             }
+            curr_encoding++;
         }
     }
 }
+
 
 // Encode values using frequency mapping for a single color channel
 // TODO: change all color channel data vals post-quantization to be ints instead of doubles

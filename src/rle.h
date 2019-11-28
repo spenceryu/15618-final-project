@@ -12,8 +12,8 @@ struct RleTuple {
 
 struct EncodedBlockColor {
     std::vector<RleTuple> encoded;
-    std::map<char, double> encodingTable;
-    std::map<double, char> freqs;
+    std::map<char, double> decode_table;
+    std::map<double, char> encode_table;
 };
 
 struct EncodedBlock {
