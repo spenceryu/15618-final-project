@@ -11,10 +11,10 @@ std::vector<std::shared_ptr<PixelYcbcr>> quantize(std::vector<std::shared_ptr<Pi
     }
 
     for (int i = 0; i < block_size*block_size; i++) {
-        pixels[i]->y = round(pixels[i]->y / quant_matrix[i]);
+        pixels[i]->y = pixels[i]->y / quant_matrix[i];
         if (all) {
-            pixels[i]->cr = round(pixels[i]->cr / quant_matrix[i]);
-            pixels[i]->cb = round(pixels[i]->cb / quant_matrix[i]);
+            pixels[i]->cr = pixels[i]->cr / quant_matrix[i];
+            pixels[i]->cb = pixels[i]->cb / quant_matrix[i];
         }
     }
     return pixels;
