@@ -27,8 +27,8 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     }
     */
 
-    /*
     // Print statement: verify RleTuples are being encoded (Fixed now...)
+    /*
     for (RleTuple a: (*(result_y->encoded).get())) {
         fprintf(stdout, "RleTuple: encoded %d count %d\n", a.encoded, a.count);
     }
@@ -231,7 +231,7 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
             curr_run++;
         } else {
             RleTuple rleTuple;
-            rleTuple.encoded = curr_val;
+            rleTuple.encoded = (*color->encode_table)[curr_val];
             rleTuple.count = curr_run;
             (*encoded_ptr).push_back(rleTuple);
             curr_run = 1;
@@ -242,7 +242,7 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
     // Edge case: pushing back last value
     // Case 1: last value is different
     RleTuple rleTuple;
-    rleTuple.encoded = chan_vals[n-1];
+    rleTuple.encoded = (*color->encode_table)[chan_vals[n-1]];
     if (chan_vals[n-1] != chan_vals[n-2]) {
         rleTuple.count = 1;
     } else { // Case 2: last value is the same
