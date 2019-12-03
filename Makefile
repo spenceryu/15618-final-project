@@ -1,10 +1,10 @@
 EXECUTABLE := compress
 
-CU_FILES   := src/jpeg.cu
+CU_FILES   :=
 
 CU_DEPS    :=
 
-CC_FILES   := src/main.cpp src/jpeg-seq.cpp
+CC_FILES   := src/main.cpp
 
 all: $(EXECUTABLE) $(REFERENCE)
 
@@ -25,7 +25,7 @@ NVCCFLAGSDEBUG=-g -G -m64 --gpu-architecture compute_35
 NVCCFLAGS=-O3 -m64 --gpu-architecture compute_35
 
 
-OBJS=$(OBJDIR)/main.o  $(OBJDIR)/jpeg.o $(OBJDIR)/jpeg-seq.o $(OBJDIR)/$(PNGDIR)/lodepng.o $(OBJDIR)/dct.o $(OBJDIR)/image.o $(OBJDIR)/quantize.o $(OBJDIR)/rle.o $(OBJDIR)/dpcm.o
+OBJS=$(OBJDIR)/main.o $(OBJDIR)/$(PNGDIR)/lodepng.o $(OBJDIR)/dct.o $(OBJDIR)/image.o $(OBJDIR)/quantize.o $(OBJDIR)/rle.o $(OBJDIR)/dpcm.o
 
 
 .PHONY: default dirs clean lodepng

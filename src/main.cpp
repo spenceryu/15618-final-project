@@ -1,5 +1,6 @@
 #include <iostream>
 #include <fstream>
+#include "getopt.h"
 #include "stdio.h"
 #include "lodepng/lodepng.h"
 #include "dct.h"
@@ -108,7 +109,25 @@ void decodeOneStep(const char* infile, const char* outfile, const char* compress
     }
 }
 
-int main() {
-    decodeOneStep("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg");
-    return 0;
+int main(int argc, char** argv) {
+    int opt;
+    int parallel = 0;
+    while ((opt = getopt(argc, argv, ":p")) != -1) {
+        switch (opt) {
+            case 'p':
+                parallel = 1;
+                break;
+            default:
+                fprintf(stderr, "Usage: ./compress [p]\n");
+                exit(EXIT_FAILURE);
+        }
+    }
+
+    if (parallel) {
+        fprintf(stdout, "triggered parallel yay\n");
+    } else {
+        decodeOneStep("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg");
+    }
+
+    exit(EXIT_SUCCESS);
 }
