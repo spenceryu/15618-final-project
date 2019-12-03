@@ -58,25 +58,20 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
     unsigned int y_idx = 0;
     std::shared_ptr<EncodedBlockColor> y_channel = encoded->y;
     std::shared_ptr<std::vector<RleTuple>> tups = y_channel->encoded;
+
+    // Decode DC value first
+    result[y_idx]->y = y_channel->dc_val;
+    y_idx++;
+
+    // Decode AC values after
     for (RleTuple tup : *tups) {
         std::shared_ptr<std::map<char, double>> decode_table = y_channel->decode_table;
         std::map<char, double> decode_table_ptr = *decode_table;
         char encoded = tup.encoded;
         char freq = tup.count;
-        if (freq > 0) { // AC value
-            double decoded_val = decode_table_ptr[encoded];
-
-            // TODO: problem - seems like all AC values are 0's
-            if (decoded_val != 0) {
-                fprintf(stdout, "encoded: %d, decoded %f\n", encoded, decoded_val);
-            }
-
-            for (char c = 0; c < freq; c++) {
-                result[y_idx]->y = decoded_val;
-                y_idx++;
-            }
-        } else { // DC value
-            result[y_idx]->y = encoded;
+        double decoded_val = decode_table_ptr[encoded];
+        for (char c = 0; c < freq; c++) {
+            result[y_idx]->y = decoded_val;
             y_idx++;
         }
     }
@@ -85,19 +80,20 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
     unsigned int cr_idx = 0;
     std::shared_ptr<EncodedBlockColor> cr_channel = encoded->cr;
     tups = cr_channel->encoded;
+
+    // Decode DC value first
+    result[cr_idx]->cr = cr_channel->dc_val;
+    cr_idx++;
+
+    // Decode AC values after
     for (RleTuple tup : *tups) {
         std::shared_ptr<std::map<char, double>> decode_table = cr_channel->decode_table;
         std::map<char, double> decode_table_ptr = *decode_table;
         char encoded = tup.encoded;
         char freq = tup.count;
-        if (freq > 0) { // AC value
-            double decoded_val = decode_table_ptr[encoded];
-            for (char c = 0; c < freq; c++) {
-                result[cr_idx]->cr = decoded_val;
-                cr_idx++;
-            }
-        } else { // DC value
-            result[cr_idx]->cr = encoded;
+        double decoded_val = decode_table_ptr[encoded];
+        for (char c = 0; c < freq; c++) {
+            result[cr_idx]->cr = decoded_val;
             cr_idx++;
         }
     }
@@ -106,19 +102,20 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
     unsigned int cb_idx = 0;
     std::shared_ptr<EncodedBlockColor> cb_channel = encoded->cb;
     tups = cb_channel->encoded;
+
+    // Decode DC value first
+    result[cb_idx]->cb = cb_channel->dc_val;
+    cb_idx++;
+
+    // Decode AC values after
     for (RleTuple tup : *tups) {
         std::shared_ptr<std::map<char, double>> decode_table = cb_channel->decode_table;
         std::map<char, double> decode_table_ptr = *decode_table;
         char encoded = tup.encoded;
         char freq = tup.count;
-        if (freq > 0) { // AC value
-            double decoded_val = decode_table_ptr[encoded];
-            for (char c = 0; c < freq; c++) {
-                result[cb_idx]->cb = decoded_val;
-                cb_idx++;
-            }
-        } else { // DC value
-            result[cb_idx]->cb = encoded;
+        double decoded_val = decode_table_ptr[encoded];
+        for (char c = 0; c < freq; c++) {
+            result[cb_idx]->cb = decoded_val;
             cb_idx++;
         }
     }
@@ -202,12 +199,6 @@ std::shared_ptr<EncodedBlockColor> buildTable(
         for (double val_to_encode : vals_to_encode) {
             (*result->encode_table)[val_to_encode] = curr_encoding;
             (*result->decode_table)[curr_encoding] = val_to_encode;
-
-            // TODO: problem - seems like all AC values are 0's
-            if (val_to_encode != 0) {
-                fprintf(stdout, "val to encode: %f, encoding: %d\n", val_to_encode, curr_encoding);
-            }
-
             curr_encoding++;
         }
     }
@@ -225,11 +216,8 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
     int n = chan_vals.size();
     std::shared_ptr<std::vector<RleTuple>> encoded_ptr = color->encoded;
 
-    // Add the 0th value with a count of 0 (should not be RLE encoded)
-    RleTuple firstValue;
-    firstValue.encoded = chan_vals[0];
-    firstValue.count = 0;
-    (*encoded_ptr).push_back(firstValue);
+    // Encode the DC value
+    color->dc_val = chan_vals[0];
 
     int curr_idx = 1;
     int curr_run = 1;

@@ -11,6 +11,7 @@ struct RleTuple {
 };
 
 struct EncodedBlockColor {
+    double dc_val;
     std::shared_ptr<std::vector<RleTuple>> encoded;
     std::shared_ptr<std::map<char, double>> decode_table;
     std::shared_ptr<std::map<double, char>> encode_table;
