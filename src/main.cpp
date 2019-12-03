@@ -10,7 +10,7 @@
 
 #define MACROBLOCK_SIZE 8
 
-void EncodeSeq(const char* infile, const char* outfile, const char* compressedFile) {
+void encodeSeq(const char* infile, const char* outfile, const char* compressedFile) {
     std::vector<unsigned char> bytes; //the raw pixels
     unsigned int width, height;
 
@@ -128,7 +128,7 @@ int main(int argc, char** argv) {
     if (parallel) {
         fprintf(stdout, "triggered parallel yay\n");
     } else {
-        EncodeSeq("raw_images/cookie2.png", "images/cookie2.png", "compressed/cookie2.jpeg");
+        encodeSeq("raw_images/cookie2.png", "images/cookie2.png", "compressed/cookie2.jpeg");
     }
 
     exit(EXIT_SUCCESS);
