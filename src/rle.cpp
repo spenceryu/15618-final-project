@@ -58,9 +58,9 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
     unsigned int y_idx = 0;
     std::shared_ptr<EncodedBlockColor> y_channel = encoded->y;
     std::shared_ptr<std::vector<RleTuple>> tups = y_channel->encoded;
-    for (RleTuple tup : *(tups.get())) {
+    for (RleTuple tup : *tups) {
         std::shared_ptr<std::map<char, double>> decode_table = y_channel->decode_table;
-        std::map<char, double> decode_table_ptr = *(decode_table.get());
+        std::map<char, double> decode_table_ptr = *decode_table;
         char encoded = tup.encoded;
         char freq = tup.count;
         if (freq > 0) { // AC value
@@ -85,9 +85,9 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
     unsigned int cr_idx = 0;
     std::shared_ptr<EncodedBlockColor> cr_channel = encoded->cr;
     tups = cr_channel->encoded;
-    for (RleTuple tup : *(tups.get())) {
+    for (RleTuple tup : *tups) {
         std::shared_ptr<std::map<char, double>> decode_table = cr_channel->decode_table;
-        std::map<char, double> decode_table_ptr = *(decode_table.get());
+        std::map<char, double> decode_table_ptr = *decode_table;
         char encoded = tup.encoded;
         char freq = tup.count;
         if (freq > 0) { // AC value
@@ -106,9 +106,9 @@ std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
     unsigned int cb_idx = 0;
     std::shared_ptr<EncodedBlockColor> cb_channel = encoded->cb;
     tups = cb_channel->encoded;
-    for (RleTuple tup : *(tups.get())) {
+    for (RleTuple tup : *tups) {
         std::shared_ptr<std::map<char, double>> decode_table = cb_channel->decode_table;
-        std::map<char, double> decode_table_ptr = *(decode_table.get());
+        std::map<char, double> decode_table_ptr = *decode_table;
         char encoded = tup.encoded;
         char freq = tup.count;
         if (freq > 0) { // AC value
@@ -200,8 +200,8 @@ std::shared_ptr<EncodedBlockColor> buildTable(
         std::vector<double> vals_to_encode = iter->second;
         // iterate through each key_freq
         for (double val_to_encode : vals_to_encode) {
-            (*(result->encode_table).get())[val_to_encode] = curr_encoding;
-            (*(result->decode_table).get())[curr_encoding] = val_to_encode;
+            (*result->encode_table)[val_to_encode] = curr_encoding;
+            (*result->decode_table)[curr_encoding] = val_to_encode;
 
             // TODO: problem - seems like all AC values are 0's
             if (val_to_encode != 0) {
@@ -229,7 +229,7 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
     RleTuple firstValue;
     firstValue.encoded = chan_vals[0];
     firstValue.count = 0;
-    (*(encoded_ptr.get())).push_back(firstValue);
+    (*encoded_ptr).push_back(firstValue);
 
     int curr_idx = 1;
     int curr_run = 1;
@@ -245,7 +245,7 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
             RleTuple rleTuple;
             rleTuple.encoded = curr_val;
             rleTuple.count = curr_run;
-            (*(encoded_ptr.get())).push_back(rleTuple);
+            (*encoded_ptr).push_back(rleTuple);
             curr_run = 1;
             curr_val = chan_vals[curr_idx];
         }
@@ -260,6 +260,6 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
     } else { // Case 2: last value is the same
         rleTuple.count = curr_run;
     }
-    (*(color->encoded).get()).push_back(rleTuple);
+    (*color->encoded).push_back(rleTuple);
 }
 
