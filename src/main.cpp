@@ -32,6 +32,8 @@ void decodeOneStep(const char* infile, const char* outfile, const char* compress
 
     fprintf(stdout, "convertYcbcrToBlocks()...\n");
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
+    width = imageBlocks->width;
+    height = imageBlocks->height;
 
     fprintf(stdout, "DCT()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
@@ -109,6 +111,8 @@ void decodeOneStep(const char* infile, const char* outfile, const char* compress
 }
 
 int main() {
-    decodeOneStep("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg");
+    /* decodeOneStep("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg"); */
+    decodeOneStep("raw_images/cookie2.png", "images/cookie2.png", "compressed/cookie2.jpeg");
+    /* decodeOneStep("raw_images/chocolate-chip-cookie.jpg", "images/chocolate-chip-cookie.jpg", "compressed/chocolate-chip-cookie.jpeg"); */
     return 0;
 }
