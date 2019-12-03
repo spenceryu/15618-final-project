@@ -10,7 +10,7 @@
 
 #define MACROBLOCK_SIZE 8
 
-void decodeOneStep(const char* infile, const char* outfile, const char* compressedFile) {
+void EncodeSeq(const char* infile, const char* outfile, const char* compressedFile) {
     std::vector<unsigned char> bytes; //the raw pixels
     unsigned int width, height;
 
@@ -33,6 +33,8 @@ void decodeOneStep(const char* infile, const char* outfile, const char* compress
 
     fprintf(stdout, "convertYcbcrToBlocks()...\n");
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
+    width = imageBlocks->width;
+    height = imageBlocks->height;
 
     fprintf(stdout, "DCT()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
@@ -126,7 +128,7 @@ int main(int argc, char** argv) {
     if (parallel) {
         fprintf(stdout, "triggered parallel yay\n");
     } else {
-        decodeOneStep("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg");
+        EncodeSeq("raw_images/cookie2.png", "images/cookie2.png", "compressed/cookie2.jpeg");
     }
 
     exit(EXIT_SUCCESS);

@@ -54,7 +54,7 @@ struct Coord {
     int row;
 };
 
-bool pixel_in_bounds(Coord block_corner, Coord coord_in_block, int width, int height);
+bool pixel_in_bounds(int row, int col, int width, int height);
 
 // Convert from (x,y) given size NxN array to vectorized idx
 int sub2ind(int width, int col, int row);

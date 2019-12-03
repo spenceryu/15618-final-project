@@ -71,6 +71,7 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
     result->height = input->height;
     int blocks_width = (input->width + block_size - 1) / block_size;
     int blocks_height = (input->height + block_size - 1) / block_size;
+    int offset = 0;
     // rows of blocks
     for (int i = 0; i < blocks_height; i++) {
         int start_index = i * block_size * block_size * blocks_width;
@@ -81,18 +82,30 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
             int row_index = start_index + j * block_size * blocks_width;
             // pixels in the row of pixels
             for (int k = 0; k < block_size * blocks_width; k++) {
-                int pixel_index = row_index + k;
+                int pixel_index = row_index + k - offset;
                 std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
-                // TODO check pixel in bounds
-                pixel->y = input->pixels[pixel_index]->y;
-                pixel->cb = input->pixels[pixel_index]->cb;
-                pixel->cr = input->pixels[pixel_index]->cr;
+                if (pixel_in_bounds(i * block_size + j, k, input->width, input->height)) {
+                    pixel->y = input->pixels[pixel_index]->y;
+                    pixel->cb = input->pixels[pixel_index]->cb;
+                    pixel->cr = input->pixels[pixel_index]->cr;
+                } else {
+                    pixel->y = 0;
+                    pixel->cb = 0;
+                    pixel->cr = 0;
+                    offset++;
+                }
                 block_row[k / block_size].push_back(pixel);
             }
         }
         blocks.insert(blocks.end(), block_row.begin(), block_row.end());
     }
     result->blocks = blocks;
+    if (result->width % block_size != 0) {
+        result->width += block_size - (result->width % block_size);
+    }
+    if (result->height % block_size != 0) {
+        result->height += block_size - (result->height % block_size);
+    }
     downsampleCbcr(result, block_size);
     return result;
 }
@@ -110,7 +123,6 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
         std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> pixel_rows(block_size);
         for (int j = 0; j < blocks_width; j++) {
             auto block = input->blocks[sub2ind(blocks_width, j, i)];
-            // TODO deal with pixel bounding
             for (unsigned int k = 0; k < block.size(); k++) {
                 std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
                 Coord block_coord = ind2sub(block_size, k);
@@ -178,12 +190,9 @@ void upsampleCbcr(std::shared_ptr<ImageBlocks> image, int block_size) {
 
 // image utils
 
-// check if a pixel is in bounds given the block corner and pixel coord in block
-bool pixel_in_bounds(Coord block_corner, Coord coord_in_block, int width, int height) {
-    Coord absolute;
-    absolute.row = block_corner.row + coord_in_block.row;
-    absolute.col = block_corner.col + coord_in_block.col;
-    return (absolute.row < height && absolute.col < width);
+// check if a pixel is in bounds
+bool pixel_in_bounds(int row, int col, int width, int height) {
+    return (row < height && col < width);
 }
 
 // Convert from (x,y) given size NxN array to vectorized idx
