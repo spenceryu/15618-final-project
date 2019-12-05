@@ -45,7 +45,7 @@ void encodeValues(
     int chan
 );
 
-std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
+std::vector<std::shared_ptr<PixelYcbcr>> decodeRLE(
     std::shared_ptr<EncodedBlock> encoded,
     int block_size
 );

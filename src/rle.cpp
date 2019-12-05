@@ -45,7 +45,7 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     return result;
 }
 
-std::vector<std::shared_ptr<PixelYcbcr>> DecodeRLE(
+std::vector<std::shared_ptr<PixelYcbcr>> decodeRLE(
     std::shared_ptr<EncodedBlock> encoded,
     int block_size) {
 

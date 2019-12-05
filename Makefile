@@ -1,6 +1,6 @@
 EXECUTABLE := compress
 
-CU_FILES   :=
+CU_FILES   := src/jpeg.cu
 
 CU_DEPS    :=
 
@@ -25,10 +25,10 @@ NVCCFLAGSDEBUG=-g -G -m64 --gpu-architecture compute_35
 NVCCFLAGS=-O3 -m64 --gpu-architecture compute_35
 
 
-OBJS=$(OBJDIR)/main.o $(OBJDIR)/$(PNGDIR)/lodepng.o $(OBJDIR)/dct.o $(OBJDIR)/image.o $(OBJDIR)/quantize.o $(OBJDIR)/rle.o $(OBJDIR)/dpcm.o
+OBJS=$(OBJDIR)/main.o $(OBJDIR)/$(PNGDIR)/lodepng.o $(OBJDIR)/dct.o $(OBJDIR)/image.o $(OBJDIR)/quantize.o $(OBJDIR)/rle.o $(OBJDIR)/dpcm.o $(OBJDIR)/jpeg.o
 
 
-.PHONY: default dirs clean lodepng
+.PHONY: default dirs clean
 
 default: $(EXECUTABLE)
 
