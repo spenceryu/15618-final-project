@@ -152,7 +152,6 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
       fprintf(stdout, "success decoding %s!\n", infile);
     }
 
-    //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
     // start parallel area
     MPI_Status mpiStatus;
     int numTasks, rank;
@@ -161,9 +160,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     MPI_Comm_size(MPI_COMM_WORLD, &numTasks);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    /*
-     * Begin setup MPI structs
-     */
+    // Begin setup MPI structs
 
     // set up mpi pixelycbcr
     // float y, cb, cr
@@ -254,45 +251,52 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     MPI_Type_contiguous(3, MPI_EncodedBlockColor, &MPI_EncodedBlock);
     MPI_Type_commit(&MPI_EncodedBlock);
 
-    /*
-     * End setup for MPI Structs
-     */
+    // End setup for MPI Structs
 
-    fprintf(stdout, "rank %d out of %d\n", rank, numTasks);
-
+    // SCATTER
+    // give each thread a section of bytes to convert to an image
     fprintf(stdout, "convertBytesToImage()...\n");
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
 
+    // each thread will continue and convert its image to ycbcr
     fprintf(stdout, "convertRgbToYcbcr()...\n");
     std::shared_ptr<ImageYcbcr> imageYcbcr = convertRgbToYcbcr(imageRgb);
 
+    // GATHER
+    // collect all images into the full image in master
     fprintf(stdout, "convertYcbcrToBlocks()...\n");
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
     width = imageBlocks->width;
     height = imageBlocks->height;
 
+    // SCATTER
+    // send blocks out to threads
     fprintf(stdout, "DCT()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
     for (auto block : imageBlocks->blocks) {
         dcts.push_back(DCT(block, MACROBLOCK_SIZE, true));
     }
 
+    // blocks stay in their threads
     fprintf(stdout, "quantize()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks;
     for (auto dct : dcts) {
         quantizedBlocks.push_back(quantize(dct, MACROBLOCK_SIZE, true));
     }
 
+    // blocks stay in their threads
     fprintf(stdout, "DPCM()...\n");
     DPCM(quantizedBlocks);
 
+    // blocks stay in their threads
     fprintf(stdout, "RLE()...\n");
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
     for (auto quantizedBlock : quantizedBlocks) {
         encodedBlocks.push_back(RLE(quantizedBlock, MACROBLOCK_SIZE));
     }
-    // send vector of shared ptr of encodedblock
 
+    // GATHER
+    // collect all blocks back into a vector of encoded blocks in master
     fprintf(stdout, "done encoding!\n");
     fprintf(stdout, "writing to file...\n");
     std::ofstream jpegFile(compressedFile);
@@ -303,27 +307,34 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     fprintf(stdout, "==============\n");
     fprintf(stdout, "now let's undo the process...\n");
 
+    // SCATTER
+    // send blocks out to threads
     fprintf(stdout, "undoing RLE()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> decodedQuantizedBlocks;
     for (auto encodedBlock : encodedBlocks) {
         decodedQuantizedBlocks.push_back(decodeRLE(encodedBlock, MACROBLOCK_SIZE));
     }
 
+    // blocks stay in their threads
     fprintf(stdout, "undoing DPCM()...\n");
     unDPCM(decodedQuantizedBlocks);
 
+    // blocks stay in their threads
     fprintf(stdout, "undoing quantize()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> unquantizedBlocks;
     for (auto decodedQuantizedBlock : decodedQuantizedBlocks) {
         unquantizedBlocks.push_back(unquantize(decodedQuantizedBlock, MACROBLOCK_SIZE, true));
     }
 
+    // blocks stay in their threads
     fprintf(stdout, "undoing DCT()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> idcts;
     for (auto unquantized : unquantizedBlocks) {
         idcts.push_back(IDCT(unquantized, MACROBLOCK_SIZE, true));
     }
 
+    // GATHER
+    // collect all blocks back into a vector of blocks in master
     fprintf(stdout, "undoing convertYcbcrToBlocks()...\n");
     std::shared_ptr<ImageBlocks> imageBlocksIdct(new ImageBlocks);
     imageBlocksIdct->blocks = idcts;
@@ -331,16 +342,29 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     imageBlocksIdct->height = height;
     std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(imageBlocksIdct, MACROBLOCK_SIZE);
 
+    // SCATTER
+    // give each thread an image with a section of the pixels to convert to rgb
     fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
     std::shared_ptr<ImageRgb> imageRgbRecovered = convertYcbcrToRgb(imgFromBlocks);
-    // sending image ycbcr
 
+    // each thread will continue and convert its image back to bytes
     fprintf(stdout, "undoing convertImageToBytes()...\n");
     std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgbRecovered);
 
-    /*
-     * Free derived types
-     */
+    // GATHER
+    // collect all bytes back into the full bytes vector for the image in master
+    if (rank == 0) {
+        error = lodepng::encode(outfile, imgRecovered, width, height);
+
+        //if there's an error, display it
+        if(error) {
+            std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
+        } else {
+            fprintf(stdout, "success encoding to %s!\n", outfile);
+        }
+    }
+    
+    // Free derived types
     MPI_Type_free(&MPI_PixelYcbcr);
     MPI_Type_free(&MPI_ImageYcbcr);
     MPI_Type_free(&MPI_RleTuple);
@@ -351,18 +375,10 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     MPI_Type_free(&MPI_EncodedBlock);
     // end parallel area
     MPI_Finalize();
-
-    error = lodepng::encode(outfile, imgRecovered, width, height);
-
-    //if there's an error, display it
-    if(error) {
-        std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
-    } else {
-        fprintf(stdout, "success encoding to %s!\n", outfile);
-    }
 }
 
 int main(int argc, char** argv) {
+    //TODO insert timing code
     int opt;
     int parallel = 0;
     while ((opt = getopt(argc, argv, ":p")) != -1) {
