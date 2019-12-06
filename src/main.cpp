@@ -168,12 +168,6 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     MPI_Type_contiguous(3, MPI_DOUBLE, &MPI_PixelYcbcr);
     MPI_Type_commit(&MPI_PixelYcbcr);
 
-    // set up mpi imageycbr
-    // int numPixels, width, height
-    MPI_Datatype MPI_ImageYcbcr;
-    MPI_Type_contiguous(3, MPI_INT, &MPI_ImageYcbcr);
-    MPI_Type_commit(&MPI_ImageYcbcr);
-
     // Set up RleTuple datatype
     MPI_Datatype MPI_RleTuple;
     MPI_Type_contiguous(2, MPI_CHAR, &MPI_RleTuple);
@@ -253,10 +247,18 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     // End setup for MPI Structs
 
+    int tag = 1;
     // SCATTER
     // give each thread a section of bytes to convert to an image
     fprintf(stdout, "convertBytesToImage()...\n");
-    std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
+    int len = bytes.size() / numTasks;
+    int start = rank * len;
+    int end = (rank + 1) * len;
+    // handle rounding issues
+    if (rank == numTasks - 1) {
+        end = bytes.size();
+    }
+    std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height, start, end);
 
     // each thread will continue and convert its image to ycbcr
     fprintf(stdout, "convertRgbToYcbcr()...\n");
@@ -264,6 +266,40 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     // GATHER
     // collect all images into the full image in master
+    if (rank == 0) {
+        for (int i = 1; i < numTasks; i++) {
+            start = i * len;
+            end = (i + 1) * len;
+            // handle rounding issues
+            if (i == numTasks - 1) {
+                end = bytes.size();
+            }
+            // receive image metadata
+            int numPixels;
+            MPI_Recv(&numPixels, 1, MPI_INT, i, MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
+            // receive image pixels
+            std::shared_ptr<PixelYcbcr[]> buffer(new PixelYcbcr[numPixels]);
+            MPI_Recv(buffer.get(), numPixels, MPI_PixelYcbcr, i, MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
+            // add pixels to full image
+            for (int j = 0; j < numPixels; j++) {
+                std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
+                pixel->y = buffer[j].y;
+                pixel->cb = buffer[j].cb;
+                pixel->cr = buffer[j].cr;
+                imageYcbcr->pixels.push_back(pixel);
+                imageYcbcr->numPixels++;
+            }
+        }
+    } else {
+        MPI_Send(&(imageYcbcr->numPixels), 1, MPI_INT, 0, tag, MPI_COMM_WORLD);
+        std::shared_ptr<PixelYcbcr[]> buffer(new PixelYcbcr[imageYcbcr->numPixels]);
+        for (int i = 0; i < imageYcbcr->numPixels; i++) {
+            buffer[i].y = imageYcbcr->pixels[i]->y;
+            buffer[i].cb = imageYcbcr->pixels[i]->cb;
+            buffer[i].cr = imageYcbcr->pixels[i]->cr;
+        }
+        MPI_Send(buffer.get(), imageYcbcr->numPixels, MPI_PixelYcbcr, 0, tag, MPI_COMM_WORLD);
+    }
     fprintf(stdout, "convertYcbcrToBlocks()...\n");
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
     width = imageBlocks->width;
@@ -273,7 +309,6 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
      * SCATTER
      */
     int numPixels;
-    int tag = 1;
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> imageBlocksWorker;
 
     if (rank == 0) {
@@ -446,7 +481,6 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     // Free derived types
     MPI_Type_free(&MPI_PixelYcbcr);
-    MPI_Type_free(&MPI_ImageYcbcr);
     MPI_Type_free(&MPI_RleTuple);
     MPI_Type_free(&MPI_RleTupleVector);
     MPI_Type_free(&MPI_CharVector);

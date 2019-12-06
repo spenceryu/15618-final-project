@@ -38,7 +38,7 @@ struct ImageBlocks {
     int height;
 };
 
-std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height);
+std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height, int start = 0, int end = -1);
 std::vector<unsigned char> convertImageToBytes(std::shared_ptr<ImageRgb> image);
 
 std::shared_ptr<ImageYcbcr> convertRgbToYcbcr(std::shared_ptr<ImageRgb> input);

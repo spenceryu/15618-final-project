@@ -3,13 +3,15 @@
 
 #define DEFAULT_ALPHA 255
 
-std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height) {
+std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height, int start, int end) {
+    if (end == -1) {
+        end = bytes.size();
+    }
     std::shared_ptr<ImageRgb> image(new ImageRgb());
     std::vector<std::shared_ptr<PixelRgba>> pixels;
-    image->numPixels = width * height;
     image->width = width;
     image->height = height;
-    for (unsigned int i = 0; i < bytes.size(); i += 4) {
+    for (int i = start; i < end; i += 4) {
         std::shared_ptr<PixelRgba> pixel(new PixelRgba());
         pixel->r = bytes[i];
         pixel->g = bytes[i + 1];
@@ -18,6 +20,7 @@ std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, 
         pixels.push_back(pixel);
     }
     image->pixels = pixels;
+    image->numPixels = pixels.size();
     return image;
 }
 
