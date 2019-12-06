@@ -269,11 +269,91 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     width = imageBlocks->width;
     height = imageBlocks->height;
 
-    // SCATTER
-    // send blocks out to threads
+    /*
+     * SCATTER
+     */
+    int numPixels;
+    int tag = 1;
+    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> imageBlocksWorker;
+
+    if (rank == 0) {
+        int numBlocks = (imageBlocks->blocks.size() + numTasks - 1) / numTasks; // round up
+        numPixels = numBlocks * MACROBLOCK_SIZE * MACROBLOCK_SIZE;
+
+        PixelYcbcr buffer[numPixels];
+
+        // Iterate through each task instance
+        for (int i = 1; i < numTasks; i++) { // do not send pixels to master
+            int offset = numTasks * numBlocks;
+            int j;
+            // Iterate through number of blocks assigned to each task
+            int totalNumBlocks = imageBlocks->blocks.size();
+            for (j = 0; ((j < numBlocks) && (offset + j < totalNumBlocks)); j++) {
+                std::vector<std::shared_ptr<PixelYcbcr>> px = imageBlocks->blocks[offset + j];
+                // Copy each pixel into the buffer
+                for (unsigned int k = 0; k < px.size(); k++) {
+                    buffer[j].y = px[k]->y;
+                    buffer[j].cb = px[k]->cb;
+                    buffer[j].cr = px[k]->cr;
+                }
+            }
+            // Send the header information (num pixels) to the worker task
+            MPI_Send(&numPixels, 1, MPI_INT, j, tag, MPI_COMM_WORLD);
+            // Send that number of blocks as a task
+            MPI_Send(buffer, numPixels, MPI_PixelYcbcr, j, tag, MPI_COMM_WORLD);
+        }
+
+        // Set blocks of pixels for the master thread
+        for (unsigned int i = 0; ((i < (unsigned int)numBlocks) &&
+            (i < imageBlocks->blocks.size())); i++) {
+            std::vector<std::shared_ptr<PixelYcbcr>> px = imageBlocks->blocks[i];
+            // Copy each pixel into the buffer
+            for (unsigned int k = 0; k < px.size(); k++) {
+                buffer[i].y = px[k]->y;
+                buffer[i].cb = px[k]->cb;
+                buffer[i].cr = px[k]->cr;
+            }
+        }
+
+        // Convert the buffer back to shared ptrs inside of blocks to continue
+        // The blocks in imageBlocksWorker are a subset of the set of blocks
+        numBlocks = numPixels / (MACROBLOCK_SIZE * MACROBLOCK_SIZE);
+        for (int i = 0; i < numBlocks; i++) {
+            int offsetIndex = (i * MACROBLOCK_SIZE * MACROBLOCK_SIZE);
+            for (int j = 0; j < (MACROBLOCK_SIZE * MACROBLOCK_SIZE); j++) {
+                imageBlocksWorker[i].push_back(
+                    std::make_shared<PixelYcbcr>(buffer[offsetIndex + j]
+                ));
+            }
+        }
+    } else {
+        // Get number of pixels to recv from master
+        MPI_Recv(&numPixels, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
+        PixelYcbcr buffer[numPixels];
+        MPI_Recv(buffer, numPixels, MPI_PixelYcbcr, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
+
+        // Convert the buffer back to shared ptrs inside of blocks to continue
+        // The blocks in imageBlocksWorker are a subset of the set of blocks
+        int numBlocks = numPixels / (MACROBLOCK_SIZE * MACROBLOCK_SIZE);
+        for (int i = 0; i < numBlocks; i++) {
+            int offsetIndex = (i * MACROBLOCK_SIZE * MACROBLOCK_SIZE);
+            for (int j = 0; j < (MACROBLOCK_SIZE * MACROBLOCK_SIZE); j++) {
+                imageBlocksWorker[i].push_back(
+                    std::make_shared<PixelYcbcr>(buffer[offsetIndex + j]
+                ));
+            }
+        }
+    }
+
+    /*
+     * END SCATTER
+     * Purpose: send blocks out to threads
+     */
+
     fprintf(stdout, "DCT()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
-    for (auto block : imageBlocks->blocks) {
+    //for (auto block : imageBlocks->blocks) {
+    for (auto block : imageBlocksWorker) {
         dcts.push_back(DCT(block, MACROBLOCK_SIZE, true));
     }
 
@@ -363,7 +443,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
             fprintf(stdout, "success encoding to %s!\n", outfile);
         }
     }
-    
+
     // Free derived types
     MPI_Type_free(&MPI_PixelYcbcr);
     MPI_Type_free(&MPI_ImageYcbcr);
