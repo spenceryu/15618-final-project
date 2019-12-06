@@ -23,6 +23,12 @@ struct EncodedBlock {
     std::shared_ptr<EncodedBlockColor> cb;
 };
 
+struct JpegEncoded {
+    unsigned int width;
+    unsigned int height;
+    std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
+};
+
 std::shared_ptr<EncodedBlock> RLE(
     std::vector<std::shared_ptr<PixelYcbcr>> block,
     int block_size

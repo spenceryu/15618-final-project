@@ -11,7 +11,8 @@
 
 #define MACROBLOCK_SIZE 8
 
-void encodeSeq(const char* infile, const char* outfile, const char* compressedFile) {
+std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* outfile, const char* compressedFile) {
+
     std::vector<unsigned char> bytes; //the raw pixels
     unsigned int width, height;
 
@@ -65,6 +66,21 @@ void encodeSeq(const char* infile, const char* outfile, const char* compressedFi
         jpegFile << block;
     }
     fprintf(stdout, "jpeg stored!\n");
+
+    std::shared_ptr<JpegEncoded> result = std::make_shared<JpegEncoded>();
+    result->encodedBlocks = encodedBlocks;
+    result->width = width;
+    result->height = height;
+
+    return result;
+}
+
+std::vector<unsigned char> jpegDecodeSeq(std::shared_ptr<JpegEncoded> jpegEncoded, const char* outfile) {
+
+    unsigned int width = jpegEncoded->width;
+    unsigned int height = jpegEncoded->height;
+    std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks = jpegEncoded->encodedBlocks;
+
     fprintf(stdout, "==============\n");
     fprintf(stdout, "now let's undo the process...\n");
 
@@ -102,7 +118,7 @@ void encodeSeq(const char* infile, const char* outfile, const char* compressedFi
     fprintf(stdout, "undoing convertBytesToImage()...\n");
     std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgbRecovered);
 
-    error = lodepng::encode(outfile, imgRecovered, width, height);
+    unsigned int error = lodepng::encode(outfile, imgRecovered, width, height);
 
     //if there's an error, display it
     if(error) {
@@ -110,6 +126,16 @@ void encodeSeq(const char* infile, const char* outfile, const char* compressedFi
     } else {
         fprintf(stdout, "success encoding to %s!\n", outfile);
     }
+
+    return imgRecovered;
+}
+
+void encodeSeq(const char* infile, const char* outfile, const char* compressedFile) {
+
+    std::shared_ptr<JpegEncoded> jpegEncoded = jpegSeq(infile, outfile, compressedFile);
+    std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks = jpegEncoded->encodedBlocks;
+    std::vector<unsigned char> imgRecovered = jpegDecodeSeq(jpegEncoded, outfile);
+
 }
 
 void encodePar(const char* infile, const char* outfile, const char* compressedFile) {
@@ -138,7 +164,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     /*
      * Begin setup MPI structs
      */
-    
+
     // set up mpi pixelycbcr
     // float y, cb, cr
     MPI_Datatype MPI_PixelYcbcr;
