@@ -335,6 +335,15 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     fprintf(stdout, "undoing convertBytesToImage()...\n");
     std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgbRecovered);
 
+    /*
+     * Free derived types
+     */
+    MPI_Type_free(&MPI_RleTuple);
+    MPI_Type_free(&MPI_RleTupleVector);
+    MPI_Type_free(&MPI_CharVector);
+    MPI_Type_free(&MPI_DoubleVector);
+    MPI_Type_free(&MPI_EncodedBlockColor);
+    MPI_Type_free(&MPI_EncodedBlock);
     // end parallel area
     MPI_Finalize();
 
