@@ -1,0 +1,22 @@
+#!/bin/bash
+# run sequential compress of parallel compress with given number of mpi tasks
+
+if [[ ! -f "compress-bin" ]]
+then
+    echo "compress-bin not found, run make"
+    exit
+fi
+if [[ "$#" -eq 0 ]] || [[ "$1" = "help" ]]
+then
+    echo "Usage: compress [s|p] [n]"
+    echo ""
+    echo "s: run sequential implementation"
+    echo "p: run parallel implementation with the given number of mpi tasks"
+    echo "n: number of mpi tasks to use for parallel implementation"
+elif [[ "$1" = "s" ]]
+then
+    ./compress-bin
+elif [[ "$1" = "p" ]]
+then
+    mpirun -np "$2" ./compress-bin -p
+fi

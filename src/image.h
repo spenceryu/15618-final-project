@@ -38,30 +38,6 @@ struct ImageBlocks {
     int height;
 };
 
-struct CudaImageRgb {
-    // array of pointers
-    PixelRgba** pixels;
-    int numPixels;
-    int width;
-    int height;
-};
-
-struct CudaImageYcbcr {
-    // array of pointers
-    PixelYcbcr** pixels;
-    int numPixels;
-    int width;
-    int height;
-};
-
-struct CudaImageBlocks {
-    // array of array of pointers
-    PixelYcbcr*** blocks;
-    int numBlocks;
-    int width;
-    int height;
-};
-
 std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height);
 std::vector<unsigned char> convertImageToBytes(std::shared_ptr<ImageRgb> image);
 

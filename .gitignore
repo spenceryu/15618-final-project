@@ -44,4 +44,4 @@ images/*
 compressed/*
 
 # executable
-compress
+compress-bin
