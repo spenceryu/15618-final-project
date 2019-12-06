@@ -6,6 +6,7 @@
 std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height) {
     std::shared_ptr<ImageRgb> image(new ImageRgb());
     std::vector<std::shared_ptr<PixelRgba>> pixels;
+    image->numPixels = width * height;
     image->width = width;
     image->height = height;
     for (unsigned int i = 0; i < bytes.size(); i += 4) {
@@ -34,6 +35,7 @@ std::vector<unsigned char> convertImageToBytes(std::shared_ptr<ImageRgb> image) 
 
 std::shared_ptr<ImageYcbcr> convertRgbToYcbcr(std::shared_ptr<ImageRgb> input) {
     std::shared_ptr<ImageYcbcr> result(new ImageYcbcr());
+    result->numPixels = input->numPixels;
     result->width = input->width;
     result->height = input->height;
     std::vector<std::shared_ptr<PixelYcbcr>> new_pixels;
@@ -50,6 +52,7 @@ std::shared_ptr<ImageYcbcr> convertRgbToYcbcr(std::shared_ptr<ImageRgb> input) {
 
 std::shared_ptr<ImageRgb> convertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input) {
     std::shared_ptr<ImageRgb> result(new ImageRgb());
+    result->numPixels = input->numPixels;
     result->width = input->width;
     result->height = input->height;
     std::vector<std::shared_ptr<PixelRgba>> new_pixels;
@@ -71,6 +74,7 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
     result->height = input->height;
     int blocks_width = (input->width + block_size - 1) / block_size;
     int blocks_height = (input->height + block_size - 1) / block_size;
+    result->numBlocks = blocks_width * blocks_height;
     int offset = 0;
     // rows of blocks
     for (int i = 0; i < blocks_height; i++) {
@@ -114,6 +118,7 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
     upsampleCbcr(input, block_size);
     std::shared_ptr<ImageYcbcr> result(new ImageYcbcr());
     std::vector<std::shared_ptr<PixelYcbcr>> pixels;
+    result->numPixels = input->width * input->height;
     result->width = input->width;
     result->height = input->height;
     int blocks_width = (input->width + block_size - 1) / block_size;

@@ -11,30 +11,30 @@
 #define MACROBLOCK_SIZE 8
 
 //cuda image.h
-std::shared_ptr<ImageRgb> cudaConvertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height);
-std::vector<unsigned char> cudaConvertImageToBytes(std::shared_ptr<ImageRgb> image);
+CudaImageRgb* cudaConvertBytesToImage(unsigned char* bytes, unsigned int width, unsigned int height);
+unsigned char* cudaConvertImageToBytes(CudaImageRgb* image);
 
-std::shared_ptr<ImageYcbcr> cudaConvertRgbToYcbcr(std::shared_ptr<ImageRgb> input);
-std::shared_ptr<ImageRgb> cudaConvertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input);
+CudaImageYcbcr* cudaConvertRgbToYcbcr(CudaImageRgb* input);
+CudaImageRgb* cudaConvertYcbcrToRgb(CudaImageYcbcr* input);
 
-std::shared_ptr<ImageBlocks> cudaConvertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> input, int block_size);
-std::shared_ptr<ImageYcbcr> cudaConvertBlocksToYcbcr(std::shared_ptr<ImageBlocks> input, int block_size);
+CudaImageBlocks* cudaConvertYcbcrToBlocks(CudaImageYcbcr* input, int block_size);
+CudaImageYcbcr* cudaConvertBlocksToYcbcr(CudaImageBlocks* input, int block_size);
 
 //cuda dct.h
-std::vector<std::shared_ptr<PixelYcbcr>> cudaDCT(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
-std::vector<std::shared_ptr<PixelYcbcr>> cudaIDCT(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
+PixelYcbcr** cudaDCT(PixelYcbcr** pixels, int block_size, bool all);
+PixelYcbcr** cudaIDCT(PixelYcbcr** pixels, int block_size, bool all);
 
 //cuda quantize.h
-std::vector<std::shared_ptr<PixelYcbcr>> cudaQuantize(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
-std::vector<std::shared_ptr<PixelYcbcr>> cudaUnquantize(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
+PixelYcbcr** cudaQuantize(PixelYcbcr** pixels, int block_size, bool all);
+PixelYcbcr** cudaUnquantize(PixelYcbcr** pixels, int block_size, bool all);
 
 //cuda dpcm.h
-void cudaDPCM(std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks);
-void cudaUnDPCM(std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks);
+void cudaDPCM(PixelYcbcr*** blocks);
+void cudaUnDPCM(PixelYcbcr*** blocks);
 
 //cuda rle.h
-std::shared_ptr<EncodedBlock> cudaRLE( std::vector<std::shared_ptr<PixelYcbcr>> block, int block_size);
-std::vector<std::shared_ptr<PixelYcbcr>> cudaDecodeRLE( std::shared_ptr<EncodedBlock> encoded, int block_size);
+EncodedBlock* cudaRLE(PixelYcbcr** block, int block_size);
+PixelYcbcr** cudaDecodeRLE(EncodedBlock* encoded, int block_size);
 
 void encodeSeq(const char* infile, const char* outfile, const char* compressedFile) {
     std::vector<unsigned char> bytes; //the raw pixels
@@ -156,43 +156,50 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
     fprintf(stdout, "convertBytesToImage()...\n");
-    std::shared_ptr<ImageRgb> imageRgb = cudaConvertBytesToImage(bytes, width, height);
+    CudaImageRgb* imageRgb = cudaConvertBytesToImage((unsigned char*) NULL, width, height);
 
     fprintf(stdout, "convertRgbToYcbcr()...\n");
-    std::shared_ptr<ImageYcbcr> imageYcbcr = cudaConvertRgbToYcbcr(imageRgb);
+    CudaImageYcbcr* imageYcbcr = cudaConvertRgbToYcbcr(imageRgb);
 
     fprintf(stdout, "convertYcbcrToBlocks()...\n");
-    std::shared_ptr<ImageBlocks> imageBlocks = cudaConvertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
+    CudaImageBlocks* imageBlocks = cudaConvertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
     width = imageBlocks->width;
     height = imageBlocks->height;
 
     fprintf(stdout, "DCT()...\n");
-    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
-    for (auto block : imageBlocks->blocks) {
-        dcts.push_back(cudaDCT(block, MACROBLOCK_SIZE, true));
+    // array of array of pointers
+    PixelYcbcr*** dcts;
+    dcts = (PixelYcbcr***) calloc(imageBlocks->numBlocks, sizeof(PixelYcbcr**));
+    for (int i = 0; i < imageBlocks->numBlocks; i++) {
+        dcts[i] = cudaDCT(imageBlocks->blocks[i], MACROBLOCK_SIZE, true);
     }
 
     fprintf(stdout, "quantize()...\n");
-    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks;
-    for (auto dct : dcts) {
-        quantizedBlocks.push_back(cudaQuantize(dct, MACROBLOCK_SIZE, true));
+    // array of array of pointers
+    PixelYcbcr*** quantizedBlocks;
+    quantizedBlocks = (PixelYcbcr***) calloc(imageBlocks->numBlocks, sizeof(PixelYcbcr**));
+    for (int i = 0; i < imageBlocks->numBlocks; i++) {
+        quantizedBlocks[i] = cudaQuantize(dcts[i], MACROBLOCK_SIZE, true);
     }
 
     fprintf(stdout, "DPCM()...\n");
     cudaDPCM(quantizedBlocks);
 
     fprintf(stdout, "RLE()...\n");
-    std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
-    for (auto quantizedBlock : quantizedBlocks) {
-        encodedBlocks.push_back(cudaRLE(quantizedBlock, MACROBLOCK_SIZE));
+    // array of pointers
+    EncodedBlock** encodedBlocks;
+    encodedBlocks = (EncodedBlock**) calloc(imageBlocks->numBlocks, sizeof(EncodedBlock*));
+    for (int i = 0; i < imageBlocks->numBlocks; i++) {
+        encodedBlocks[i] = cudaRLE(quantizedBlocks[i], MACROBLOCK_SIZE);
     }
     //TODO copy back to host
 
     fprintf(stdout, "done encoding!\n");
     fprintf(stdout, "writing to file...\n");
     std::ofstream jpegFile(compressedFile);
-    for (const auto &block : encodedBlocks) {
-        jpegFile << block;
+    // TODO make this work
+    for (int i = 0; i < imageBlocks->numBlocks; i++) {
+        jpegFile << encodedBlocks[i];
     }
     fprintf(stdout, "jpeg stored!\n");
     fprintf(stdout, "==============\n");
@@ -200,38 +207,45 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     //TODO copy back to device
 
     fprintf(stdout, "undoing RLE()...\n");
-    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> decodedQuantizedBlocks;
-    for (auto encodedBlock : encodedBlocks) {
-        decodedQuantizedBlocks.push_back(cudaDecodeRLE(encodedBlock, MACROBLOCK_SIZE));
+    // array of array of pointers
+    PixelYcbcr*** decodedQuantizedBlocks;
+    decodedQuantizedBlocks = (PixelYcbcr***) calloc(imageBlocks->numBlocks, sizeof(PixelYcbcr**));
+    for (int i = 0; i < imageBlocks->numBlocks; i++) {
+        decodedQuantizedBlocks[i] = cudaDecodeRLE(encodedBlocks[i], MACROBLOCK_SIZE);
     }
 
     fprintf(stdout, "undoing DPCM()...\n");
     cudaUnDPCM(decodedQuantizedBlocks);
 
     fprintf(stdout, "undoing quantize()...\n");
-    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> unquantizedBlocks;
-    for (auto decodedQuantizedBlock : decodedQuantizedBlocks) {
-        unquantizedBlocks.push_back(cudaUnquantize(decodedQuantizedBlock, MACROBLOCK_SIZE, true));
+    // array of array of pointers
+    PixelYcbcr*** unquantizedBlocks;
+    unquantizedBlocks = (PixelYcbcr***) calloc(imageBlocks->numBlocks, sizeof(PixelYcbcr**));
+    for (int i = 0; i < imageBlocks->numBlocks; i++) {
+        unquantizedBlocks[i] = cudaUnquantize(decodedQuantizedBlocks[i], MACROBLOCK_SIZE, true);
     }
 
     fprintf(stdout, "undoing DCT()...\n");
-    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> idcts;
-    for (auto unquantized : unquantizedBlocks) {
-        idcts.push_back(cudaIDCT(unquantized, MACROBLOCK_SIZE, true));
+    // array of array of pointers
+    PixelYcbcr*** idcts;
+    idcts = (PixelYcbcr***) calloc(imageBlocks->numBlocks, sizeof(PixelYcbcr**));
+    for (int i = 0; i < imageBlocks->numBlocks; i++) {
+        idcts[i] = cudaIDCT(unquantizedBlocks[i], MACROBLOCK_SIZE, true);
     }
 
     fprintf(stdout, "undoing convertYcbcrToBlocks()...\n");
-    std::shared_ptr<ImageBlocks> imageBlocksIdct(new ImageBlocks);
-    imageBlocksIdct->blocks = idcts;
-    imageBlocksIdct->width = width;
-    imageBlocksIdct->height = height;
-    std::shared_ptr<ImageYcbcr> imgFromBlocks = cudaConvertBlocksToYcbcr(imageBlocksIdct, MACROBLOCK_SIZE);
+    CudaImageBlocks imageBlocksIdct;
+    imageBlocksIdct.blocks = idcts;
+    imageBlocksIdct.width = width;
+    imageBlocksIdct.height = height;
+    CudaImageYcbcr* imgFromBlocks = cudaConvertBlocksToYcbcr(&imageBlocksIdct, MACROBLOCK_SIZE);
 
     fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
-    std::shared_ptr<ImageRgb> imageRgbRecovered = cudaConvertYcbcrToRgb(imgFromBlocks);
+    CudaImageRgb* imageRgbRecovered = cudaConvertYcbcrToRgb(imgFromBlocks);
 
     fprintf(stdout, "undoing convertBytesToImage()...\n");
-    std::vector<unsigned char> imgRecovered = cudaConvertImageToBytes(imageRgbRecovered);
+    // array
+    unsigned char* imgRecovered = cudaConvertImageToBytes(imageRgbRecovered);
 
     //TODO copy back to host
 

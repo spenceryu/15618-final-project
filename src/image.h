@@ -19,18 +19,45 @@ struct PixelYcbcr {
 
 struct ImageRgb {
     std::vector<std::shared_ptr<PixelRgba>> pixels;
+    int numPixels;
     int width;
     int height;
 };
 
 struct ImageYcbcr {
     std::vector<std::shared_ptr<PixelYcbcr>> pixels;
+    int numPixels;
     int width;
     int height;
 };
 
 struct ImageBlocks {
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks;
+    int numBlocks;
+    int width;
+    int height;
+};
+
+struct CudaImageRgb {
+    // array of pointers
+    PixelRgba** pixels;
+    int numPixels;
+    int width;
+    int height;
+};
+
+struct CudaImageYcbcr {
+    // array of pointers
+    PixelYcbcr** pixels;
+    int numPixels;
+    int width;
+    int height;
+};
+
+struct CudaImageBlocks {
+    // array of array of pointers
+    PixelYcbcr*** blocks;
+    int numBlocks;
     int width;
     int height;
 };

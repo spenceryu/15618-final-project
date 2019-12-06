@@ -30,27 +30,66 @@ inline void cudaAssert(cudaError_t code, const char *file, int line,
 #endif
 
 //cuda image.h
-std::shared_ptr<ImageRgb> cudaConvertBytesToImage(std::vector<unsigned char> bytes, unsigned int width, unsigned int height);
-std::vector<unsigned char> cudaConvertImageToBytes(std::shared_ptr<ImageRgb> image);
+// bytes is an array
+CudaImageRgb* cudaConvertBytesToImage(unsigned char* bytes, unsigned int width, unsigned int height) {
+    return NULL;
+}
+unsigned char* cudaConvertImageToBytes(CudaImageRgb* image) {
+    return NULL;
+}
 
-std::shared_ptr<ImageYcbcr> cudaConvertRgbToYcbcr(std::shared_ptr<ImageRgb> input);
-std::shared_ptr<ImageRgb> cudaConvertYcbcrToRgb(std::shared_ptr<ImageYcbcr> input);
+CudaImageYcbcr* cudaConvertRgbToYcbcr(CudaImageRgb* input) {
+    return NULL;
+}
+CudaImageRgb* cudaConvertYcbcrToRgb(CudaImageYcbcr* input) {
+    return NULL;
+}
 
-std::shared_ptr<ImageBlocks> cudaConvertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> input, int block_size);
-std::shared_ptr<ImageYcbcr> cudaConvertBlocksToYcbcr(std::shared_ptr<ImageBlocks> input, int block_size);
+CudaImageBlocks* cudaConvertYcbcrToBlocks(CudaImageYcbcr* input, int block_size) {
+    return NULL;
+}
+CudaImageYcbcr* cudaConvertBlocksToYcbcr(CudaImageBlocks* input, int block_size) {
+    return NULL;
+}
 
 //cuda dct.h
-std::vector<std::shared_ptr<PixelYcbcr>> cudaDCT(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
-std::vector<std::shared_ptr<PixelYcbcr>> cudaIDCT(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
+// returns array of pointers
+// pixels is an array of pointers
+PixelYcbcr** cudaDCT(PixelYcbcr** pixels, int block_size, bool all) {
+    return NULL;
+}
+// returns array of pointers
+// pixels is an array of pointers
+PixelYcbcr** cudaIDCT(PixelYcbcr** pixels, int block_size, bool all) {
+    return NULL;
+}
 
 //cuda quantize.h
-std::vector<std::shared_ptr<PixelYcbcr>> cudaQuantize(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
-std::vector<std::shared_ptr<PixelYcbcr>> cudaUnquantize(std::vector<std::shared_ptr<PixelYcbcr>> pixels, int block_size, bool all);
+// returns array of pointers
+// pixels is an array of pointers
+PixelYcbcr** cudaQuantize(PixelYcbcr** pixels, int block_size, bool all) {
+    return NULL;
+}
+// returns array of pointers
+// pixels is an array of pointers
+PixelYcbcr** cudaUnquantize(PixelYcbcr** pixels, int block_size, bool all) {
+    return NULL;
+}
 
 //cuda dpcm.h
-void cudaDPCM(std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks);
-void cudaUnDPCM(std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks);
+void cudaDPCM(PixelYcbcr*** blocks) {
+    return;
+}
+void cudaUnDPCM(PixelYcbcr*** blocks) {
+    return;
+}
 
 //cuda rle.h
-std::shared_ptr<EncodedBlock> cudaRLE( std::vector<std::shared_ptr<PixelYcbcr>> block, int block_size);
-std::vector<std::shared_ptr<PixelYcbcr>> cudaDecodeRLE( std::shared_ptr<EncodedBlock> encoded, int block_size);
+// block is an array of pointers
+EncodedBlock* cudaRLE(PixelYcbcr** block, int block_size) {
+    return NULL;
+}
+// returns an array of pointers
+PixelYcbcr** cudaDecodeRLE(EncodedBlock* encoded, int block_size) {
+    return NULL;
+}
