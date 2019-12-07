@@ -283,9 +283,9 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
             // add pixels to full image
             for (int j = 0; j < numPixels; j++) {
                 std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
-                pixel->y = (*buffer.get())[j].y;
-                pixel->cb = (*buffer.get())[j].cb;
-                pixel->cr = (*buffer.get())[j].cr;
+                pixel->y = buffer[j].y;
+                pixel->cb = buffer[j].cb;
+                pixel->cr = buffer[j].cr;
                 imageYcbcr->pixels.push_back(pixel);
                 imageYcbcr->numPixels++;
             }
@@ -294,9 +294,9 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         MPI_Send(&(imageYcbcr->numPixels), 1, MPI_INT, 0, tag, MPI_COMM_WORLD);
         std::shared_ptr<PixelYcbcr[]> buffer(new PixelYcbcr[imageYcbcr->numPixels]);
         for (int i = 0; i < imageYcbcr->numPixels; i++) {
-            (*buffer.get())[i].y = imageYcbcr->pixels[i]->y;
-            (*buffer.get())[i].cb = imageYcbcr->pixels[i]->cb;
-            (*buffer.get())[i].cr = imageYcbcr->pixels[i]->cr;
+            buffer[i].y = imageYcbcr->pixels[i]->y;
+            buffer[i].cb = imageYcbcr->pixels[i]->cb;
+            buffer[i].cr = imageYcbcr->pixels[i]->cr;
         }
         MPI_Send(buffer.get(), imageYcbcr->numPixels, MPI_PixelYcbcr, 0, tag, MPI_COMM_WORLD);
     }
