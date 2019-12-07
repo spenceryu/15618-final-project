@@ -208,7 +208,6 @@ std::shared_ptr<EncodedBlockColor> buildTable(
 
 
 // Encode values using frequency mapping for a single color channel
-// TODO: change all color channel data vals post-quantization to be ints instead of doubles
 void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_ptr<EncodedBlockColor> color, int chan) {
 
     std::vector<double> chan_vals = extractChannel(block, chan);
@@ -251,3 +250,41 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
     (*color->encoded).push_back(rleTuple);
 }
 
+// Write the encoded blocks  without pointers from the
+// worker to buffer for MPI send back to master
+void writeToBuffer(
+    EncodedBlockNoPtr* encodedBlockBuffer,
+    std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks,
+    int idx, int chan) {
+
+    // Get encoded block from vector of encoded blocks
+    std::shared_ptr<EncodedBlock> encodedBlock = encodedBlocks[idx];
+
+    // Write the DC value to the buffer
+    encodedBlockBuffer[idx].y.dc_val = encodedBlock.dc_val;
+
+    for (unsigned int i = 0; i < encodedBlock.size(); i++) {
+        if (chan == COLOR_Y) {
+            // Write the encoded channel values to the buffer
+            for (unsigned int j = 0; j < encodedBlock.y.encoded.size(); j++) {
+                encodedBlockBuffer[idx].y.encoded[j].encoded = encodedBlock->y->encoded[j].encoded;
+                encodedBlockBuffer[idx].y.encoded[j].count = encodedBlock->y->encoded[j].count;
+            }
+            // Write the encoded channel length to the buffer
+            encodedBlockBuffer[idx].y.encoded_len = encodedBlock.y.encoded.size();
+            // Write the dict: chars + doubles pairs to the buffer
+            char kv_idx = 0;
+            for (std::map<char, double>::iterator iter = encodedBlock->encode_table.begin();
+                iter != encodedBlock->encode_table.end(); ++iter) {
+                char char_val = iter->first;
+                double double_val = iter->second;
+                encodedBlockBuffer[idx].y.char_vals[kv_idx] = char_val;
+                encodedBlockBuffer[idx].y.double_vals[kv_idx] = double_val;
+                kv_idx++;
+            }
+            // Write the table size to the buffer
+            encodedBlockBuffer[idx].y.table_size = kv_idx;
+        }
+    } // TODO add two more color switches
+
+}

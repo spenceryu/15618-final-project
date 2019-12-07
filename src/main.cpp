@@ -375,8 +375,46 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         encodedBlocks.push_back(RLE(quantizedBlock, MACROBLOCK_SIZE));
     }
 
-    // GATHER
-    // collect all blocks back into a vector of encoded blocks in master
+    /*
+     * BEGIN GATHER
+     * Purpose: collect all blocks back into a vector of encoded blocks in master
+     */
+
+    // For master thread, collect encoded blocks in order from workers
+    int numEncodedBlocks;
+    if (rank == 0) {
+        for (int i = 1; i < numTasks; i++) {
+            // recv the number of encoded blocks
+            MPI_Recv(&numEncodedBlocks, 1, MPI_INT, i, MPI_ANY_TAG,
+                MPI_COMM_WORLD, &mpiStatus);
+            // recv the encoded blocks
+            EncodedBlockNoPtr encodedBlocksBuffer[numEncodedBlocks];
+            MPI_Recv(encodedBlocksBuffer, numEncodedBlocks, MPI_EncodedBlock, i,
+                MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
+            // TODO add the encoded blocks to encodedBlocks vector
+        }
+    } else {
+        // For each worker, send its encoded blocks back to master
+        numEncodedBlocks = encodedBlocks.size();
+        // send number of encoded blocks
+        MPI_Send(&numEncodedBlocks, 1, MPI_INT, 0, tag, MPI_COMM_WORLD);
+        EncodedBlockNoPtr encodedBlockBuffer[numEncodedBlocks];
+        // build the encoded blocks structure
+        for (unsigned int i = 0; i < encodedBlocks.size(); i++) {
+            writeToBuffer(encodedBlockBuffer, encodedBlocks, i, COLOR_Y);
+            writeToBuffer(encodedBlockBuffer, encodedBlocks, i, COLOR_CR);
+            writeToBuffer(encodedBlockBuffer, encodedBlocks, i, COLOR_CB);
+        }
+        // send the encoded blocks
+        MPI_Send(&encodedBlockBuffer, numEncodedBlocks, MPI_EncodedBlock, 0,
+            tag, MPI_COMM_WORLD);
+    }
+
+    /*
+     * END GATHER
+     * Purpose: collect all blocks back into a vector of encoded blocks in master
+     */
+
     fprintf(stdout, "done encoding!\n");
     fprintf(stdout, "writing to file...\n");
     std::ofstream jpegFile(compressedFile);

@@ -3,6 +3,8 @@
 #include <memory>
 #include "image.h"
 
+#define MACROBLOCK_SIZE 8
+
 // Store (encoded, count) structs. Since macroblocks are 8x8 the char datatype
 // (-128 to 127) is sufficient for storing this information.
 struct RleTuple {
@@ -23,10 +25,27 @@ struct EncodedBlock {
     std::shared_ptr<EncodedBlockColor> cb;
 };
 
-struct JpegEncoded {
+struct JpegEncoded { // for helper function ease of use
     unsigned int width;
     unsigned int height;
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
+};
+
+// MIRROR STRUCTURES FOR STACK ALLOC MEMORY MATH IN MPI
+struct EncodedBlockColorNoPtr {
+    double dc_val;
+    char encoded_len;
+    RleTuple encoded[MACROBLOCK_SIZE * MACROBLOCK_SIZE];
+    char table_size;
+    char char_vals[MACROBLOCK_SIZE * MACROBLOCK_SIZE];
+    double double_vals[MACROBLOCK_SIZE * MACROBLOCK_SIZE];
+};
+
+// MIRROR STRUCTURES FOR STACK ALLOC MEMORY MATH IN MPI
+struct EncodedBlockNoPtr {
+    EncodedBlockColorNoPtr y;
+    EncodedBlockColorNoPtr cr;
+    EncodedBlockColorNoPtr cb;
 };
 
 std::shared_ptr<EncodedBlock> RLE(
@@ -55,3 +74,8 @@ std::vector<std::shared_ptr<PixelYcbcr>> decodeRLE(
     std::shared_ptr<EncodedBlock> encoded,
     int block_size
 );
+
+void writeToBuffer(
+    EncodedBlockNoPtr* encodedBlockBuffer,
+    std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks,
+    int idx, int chan)
