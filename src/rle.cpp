@@ -1,7 +1,3 @@
-#define COLOR_Y  0
-#define COLOR_CR 1
-#define COLOR_CB 2
-
 #include <algorithm>
 #include "rle.h"
 

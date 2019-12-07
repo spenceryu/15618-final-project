@@ -4,6 +4,9 @@
 #include "image.h"
 
 #define MACROBLOCK_SIZE 8
+#define COLOR_Y  0
+#define COLOR_CR 1
+#define COLOR_CB 2
 
 // Store (encoded, count) structs. Since macroblocks are 8x8 the char datatype
 // (-128 to 127) is sufficient for storing this information.
@@ -78,4 +81,4 @@ std::vector<std::shared_ptr<PixelYcbcr>> decodeRLE(
 void writeToBuffer(
     EncodedBlockNoPtr* encodedBlockBuffer,
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks,
-    int idx, int chan)
+    int idx, int chan);
