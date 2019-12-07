@@ -251,6 +251,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     // SCATTER
     // give each thread a section of bytes to convert to an image
     fprintf(stdout, "convertBytesToImage()...\n");
+    int numPixels;
     int len = bytes.size() / numTasks;
     int start = rank * len;
     int end = (rank + 1) * len;
@@ -275,7 +276,6 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
                 end = bytes.size();
             }
             // receive image metadata
-            int numPixels;
             MPI_Recv(&numPixels, 1, MPI_INT, i, MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
             // receive image pixels
             std::shared_ptr<PixelYcbcr[]> buffer(new PixelYcbcr[numPixels]);
@@ -300,85 +300,73 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         }
         MPI_Send(buffer.get(), imageYcbcr->numPixels, MPI_PixelYcbcr, 0, tag, MPI_COMM_WORLD);
     }
-    fprintf(stdout, "convertYcbcrToBlocks()...\n");
-    std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
-    width = imageBlocks->width;
-    height = imageBlocks->height;
 
-    /*
-     * BEGIN SCATTER
-     * Purpose: send blocks out to threads
-     */
-    int numPixels;
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> imageBlocksWorker;
 
     if (rank == 0) {
-        int numBlocks = (imageBlocks->blocks.size() + numTasks - 1) / numTasks; // round up
-        numPixels = numBlocks * MACROBLOCK_SIZE * MACROBLOCK_SIZE;
+        fprintf(stdout, "convertYcbcrToBlocks()...\n");
+        std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
+        width = imageBlocks->width;
+        height = imageBlocks->height;
 
-        PixelYcbcr buffer[numPixels];
+        /*
+         * BEGIN SCATTER
+         * Purpose: send blocks out to threads
+         */
+        
+        // pixels in the blocks for each thread
+        std::vector<std::shared_ptr<PixelYcbcr>> workerPixels[numTasks];
 
-        // Iterate through each task instance
-        for (int i = 1; i < numTasks; i++) { // do not send pixels to master
-            int offset = numTasks * numBlocks;
-            int j;
-            // Iterate through number of blocks assigned to each task
-            int totalNumBlocks = imageBlocks->blocks.size();
-            for (j = 0; ((j < numBlocks) && (offset + j < totalNumBlocks)); j++) {
-                std::vector<std::shared_ptr<PixelYcbcr>> px = imageBlocks->blocks[offset + j];
-                // Copy each pixel into the buffer
-                for (unsigned int k = 0; k < px.size(); k++) {
-                    buffer[j].y = px[k]->y;
-                    buffer[j].cb = px[k]->cb;
-                    buffer[j].cr = px[k]->cr;
-                }
-            }
-            // Send the header information (num pixels) to the worker task
-            MPI_Send(&numPixels, 1, MPI_INT, j, tag, MPI_COMM_WORLD);
-            // Send that number of blocks as a task
-            MPI_Send(buffer, numPixels, MPI_PixelYcbcr, j, tag, MPI_COMM_WORLD);
+        // choose blocks for each thread
+        for (unsigned int i = 0; i < imageBlocks->blocks.size(); i++) {
+            // append the pixels in the block to the running list for the thread
+            int index = i % numTasks;
+            std::vector<std::shared_ptr<PixelYcbcr>> block = imageBlocks->blocks[i];
+            workerPixels[index].insert(workerPixels[index].end(), block.begin(), block.end());
         }
 
-        // Set blocks of pixels for the master thread
-        for (unsigned int i = 0; ((i < (unsigned int)numBlocks) &&
-            (i < imageBlocks->blocks.size())); i++) {
-            std::vector<std::shared_ptr<PixelYcbcr>> px = imageBlocks->blocks[i];
-            // Copy each pixel into the buffer
-            for (unsigned int k = 0; k < px.size(); k++) {
-                buffer[i].y = px[k]->y;
-                buffer[i].cb = px[k]->cb;
-                buffer[i].cr = px[k]->cr;
+        // send blocks to each thread
+        for (int i = 1; i < numTasks; i++) {
+            numPixels = workerPixels[i].size();
+            std::shared_ptr<PixelYcbcr[]> buffer(new PixelYcbcr[numPixels]);
+            for (int j = 0; j < numPixels; j++) {
+                buffer[j].y = workerPixels[i][j]->y;
+                buffer[j].cb = workerPixels[i][j]->cb;
+                buffer[j].cr = workerPixels[i][j]->cr;
             }
+            MPI_Send(&numPixels, 1, MPI_INT, i, tag, MPI_COMM_WORLD);
+            MPI_Send(buffer.get(), numPixels, MPI_PixelYcbcr, i, tag, MPI_COMM_WORLD);
         }
 
-        // Convert the buffer back to shared ptrs inside of blocks to continue
-        // The blocks in imageBlocksWorker are a subset of the set of blocks
-        numBlocks = numPixels / (MACROBLOCK_SIZE * MACROBLOCK_SIZE);
-        for (int i = 0; i < numBlocks; i++) {
-            int offsetIndex = (i * MACROBLOCK_SIZE * MACROBLOCK_SIZE);
-            for (int j = 0; j < (MACROBLOCK_SIZE * MACROBLOCK_SIZE); j++) {
-                imageBlocksWorker[i].push_back(
-                    std::make_shared<PixelYcbcr>(buffer[offsetIndex + j]
-                ));
-            }
+        int pixelsPerBlock = MACROBLOCK_SIZE * MACROBLOCK_SIZE;
+        // blocks for master thread
+        std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks(workerPixels[0].size() / pixelsPerBlock);
+        for (unsigned int i = 0; i < workerPixels[0].size(); i++) {
+            int index = i / pixelsPerBlock;
+            blocks[index].push_back(workerPixels[0][i]);
         }
+
+        imageBlocksWorker = blocks;
     } else {
         // Get number of pixels to recv from master
         MPI_Recv(&numPixels, 1, MPI_INT, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
-        PixelYcbcr buffer[numPixels];
-        MPI_Recv(buffer, numPixels, MPI_PixelYcbcr, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
+        std::shared_ptr<PixelYcbcr[]> buffer(new PixelYcbcr[numPixels]);
+        MPI_Recv(buffer.get(), numPixels, MPI_PixelYcbcr, 0, MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
 
-        // Convert the buffer back to shared ptrs inside of blocks to continue
-        // The blocks in imageBlocksWorker are a subset of the set of blocks
-        int numBlocks = numPixels / (MACROBLOCK_SIZE * MACROBLOCK_SIZE);
-        for (int i = 0; i < numBlocks; i++) {
-            int offsetIndex = (i * MACROBLOCK_SIZE * MACROBLOCK_SIZE);
-            for (int j = 0; j < (MACROBLOCK_SIZE * MACROBLOCK_SIZE); j++) {
-                imageBlocksWorker[i].push_back(
-                    std::make_shared<PixelYcbcr>(buffer[offsetIndex + j]
-                ));
-            }
+        // pixels per block
+        int pixelsPerBlock = MACROBLOCK_SIZE * MACROBLOCK_SIZE;
+        // blocks for master thread
+        std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> blocks(numPixels / pixelsPerBlock);
+        for (int i = 0; i < numPixels; i++) {
+            int index = i / pixelsPerBlock;
+            std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
+            pixel->y = buffer[i].y;
+            pixel->cb = buffer[i].cb;
+            pixel->cr = buffer[i].cr;
+            blocks[index].push_back(pixel);
         }
+
+        imageBlocksWorker = blocks;
     }
 
     /*
