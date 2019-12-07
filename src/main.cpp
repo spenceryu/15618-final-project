@@ -391,21 +391,25 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
             EncodedBlockNoPtr encodedBlocksBuffer[numEncodedBlocks];
             MPI_Recv(encodedBlocksBuffer, numEncodedBlocks, MPI_EncodedBlock, i,
                 MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
-            // TODO add the encoded blocks to encodedBlocks vector
+            std::vector<std::shared_ptr<EncodedBlock>> encodedBlocksRecv =
+                convertBufferToEncodedBlocks(encodedBlocksBuffer, numEncodedBlocks);
+            for (int j = 0; j < numEncodedBlocks; j++) {
+                encodedBlocks.push_back(encodedBlocksRecv[j]);
+            }
         }
     } else {
         // For each worker, send its encoded blocks back to master
         numEncodedBlocks = encodedBlocks.size();
-        // send number of encoded blocks
+        // Send number of encoded blocks
         MPI_Send(&numEncodedBlocks, 1, MPI_INT, 0, tag, MPI_COMM_WORLD);
         EncodedBlockNoPtr encodedBlockBuffer[numEncodedBlocks];
-        // build the encoded blocks structure
+        // Build the encoded blocks structure
         for (unsigned int i = 0; i < encodedBlocks.size(); i++) {
             writeToBuffer(encodedBlockBuffer, encodedBlocks, i, COLOR_Y);
             writeToBuffer(encodedBlockBuffer, encodedBlocks, i, COLOR_CR);
             writeToBuffer(encodedBlockBuffer, encodedBlocks, i, COLOR_CB);
         }
-        // send the encoded blocks
+        // Send the encoded blocks
         MPI_Send(&encodedBlockBuffer, numEncodedBlocks, MPI_EncodedBlock, 0,
             tag, MPI_COMM_WORLD);
     }
@@ -415,13 +419,15 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
      * Purpose: collect all blocks back into a vector of encoded blocks in master
      */
 
-    fprintf(stdout, "done encoding!\n");
-    fprintf(stdout, "writing to file...\n");
-    std::ofstream jpegFile(compressedFile);
-    for (const auto &block : encodedBlocks) {
-        jpegFile << block;
+    if (rank == 0) {
+        fprintf(stdout, "done encoding!\n");
+        fprintf(stdout, "writing to file...\n");
+        std::ofstream jpegFile(compressedFile);
+        for (const auto &block : encodedBlocks) {
+            jpegFile << block;
+        }
+        fprintf(stdout, "jpeg stored!\n");
     }
-    fprintf(stdout, "jpeg stored!\n");
     fprintf(stdout, "==============\n");
     fprintf(stdout, "now let's undo the process...\n");
 
