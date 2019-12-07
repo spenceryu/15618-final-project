@@ -450,11 +450,12 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         }
         // find number of total encoded blocks
         int totalEncodedBlocks = 0;
+        int indices[numTasks];
         for (int i = 0; i < numTasks; i++) {
             totalEncodedBlocks += allEncodedBlocks[i].size();
+            indices[i] = 0;
         }
         // reorder encoded blocks by original order
-        int indices[numTasks] = {};
         for (int i = 0; i < totalEncodedBlocks; i++) {
             int index = i % numTasks;
             finalEncodedBlocks.push_back(allEncodedBlocks[index][indices[index]]);
