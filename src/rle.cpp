@@ -249,7 +249,7 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
 // Write the encoded blocks  without pointers from the
 // worker to buffer for MPI send back to master
 void writeToBuffer(
-    EncodedBlockNoPtr* encodedBlockBuffer,
+    std::shared_ptr<EncodedBlockNoPtr> encodedBlockBuffer,
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks,
     int idx, int chan) {
 
@@ -257,19 +257,17 @@ void writeToBuffer(
     std::shared_ptr<EncodedBlock> encodedBlock = encodedBlocks[idx];
 
     // Write the DC value to the buffer
-    encodedBlockBuffer[idx].y.dc_val = encodedBlock->y->dc_val;
+    (encodedBlockBuffer.get())[idx].y.dc_val = encodedBlock->y->dc_val;
 
     if (chan == COLOR_Y) {
         // Write the encoded channel values to the buffer
         unsigned int sz = (*encodedBlock->y->encoded.get()).size();
         for (unsigned int j = 0; j < sz; j++) {
-            encodedBlockBuffer[idx].y.encoded[j].encoded = (
-                *encodedBlock->y->encoded.get())[j].encoded;
-            encodedBlockBuffer[idx].y.encoded[j].count = (
-                *encodedBlock->y->encoded.get())[j].count;
+            (encodedBlockBuffer.get())[idx].y.encoded[j].encoded = (*encodedBlock->y->encoded.get())[j].encoded;
+            (encodedBlockBuffer.get())[idx].y.encoded[j].count = (*encodedBlock->y->encoded.get())[j].count;
         }
         // Write the encoded channel length to the buffer
-        encodedBlockBuffer[idx].y.encoded_len = sz;
+        (encodedBlockBuffer.get())[idx].y.encoded_len = sz;
         // Write the dict: chars + doubles pairs to the buffer
         int kv_idx = 0;
         for (std::map<double, char>::iterator iter = (
@@ -277,23 +275,21 @@ void writeToBuffer(
             iter != (*encodedBlock->y->encode_table).end(); ++iter) {
             double double_val = iter->first;
             char char_val = iter->second;
-            encodedBlockBuffer[idx].y.char_vals[kv_idx] = char_val;
-            encodedBlockBuffer[idx].y.double_vals[kv_idx] = double_val;
+            (encodedBlockBuffer.get())[idx].y.char_vals[kv_idx] = char_val;
+            (encodedBlockBuffer.get())[idx].y.double_vals[kv_idx] = double_val;
             kv_idx++;
         }
         // Write the table size to the buffer
-        encodedBlockBuffer[idx].y.table_size = kv_idx;
+        (encodedBlockBuffer.get())[idx].y.table_size = kv_idx;
     } else if (chan == COLOR_CR) {
         // Write the encoded channel values to the buffer
         unsigned int sz = (*encodedBlock->cr->encoded.get()).size();
         for (unsigned int j = 0; j < sz; j++) {
-            encodedBlockBuffer[idx].cr.encoded[j].encoded = (
-                *encodedBlock->cr->encoded.get())[j].encoded;
-            encodedBlockBuffer[idx].cr.encoded[j].count = (
-                *encodedBlock->cr->encoded.get())[j].count;
+            (encodedBlockBuffer.get())[idx].cr.encoded[j].encoded = (*encodedBlock->cr->encoded.get())[j].encoded;
+            (encodedBlockBuffer.get())[idx].cr.encoded[j].count = (*encodedBlock->cr->encoded.get())[j].count;
         }
         // Write the encoded channel length to the buffer
-        encodedBlockBuffer[idx].cr.encoded_len = sz;
+        (encodedBlockBuffer.get())[idx].cr.encoded_len = sz;
         // Write the dict: chars + doubles pairs to the buffer
         int kv_idx = 0;
         for (std::map<double, char>::iterator iter = (
@@ -301,23 +297,21 @@ void writeToBuffer(
             iter != (*encodedBlock->cr->encode_table).end(); ++iter) {
             double double_val = iter->first;
             char char_val = iter->second;
-            encodedBlockBuffer[idx].cr.char_vals[kv_idx] = char_val;
-            encodedBlockBuffer[idx].cr.double_vals[kv_idx] = double_val;
+            (encodedBlockBuffer.get())[idx].cr.char_vals[kv_idx] = char_val;
+            (encodedBlockBuffer.get())[idx].cr.double_vals[kv_idx] = double_val;
             kv_idx++;
         }
         // Write the table size to the buffer
-        encodedBlockBuffer[idx].cr.table_size = kv_idx;
+        (encodedBlockBuffer.get())[idx].cr.table_size = kv_idx;
     } else { // chan == COLOR_CB
         // Write the encoded channel values to the buffer
         unsigned int sz = (*encodedBlock->cb->encoded.get()).size();
         for (unsigned int j = 0; j < sz; j++) {
-            encodedBlockBuffer[idx].cb.encoded[j].encoded = (
-                *encodedBlock->cb->encoded.get())[j].encoded;
-            encodedBlockBuffer[idx].cb.encoded[j].count = (
-                *encodedBlock->cb->encoded.get())[j].count;
+            (encodedBlockBuffer.get())[idx].cb.encoded[j].encoded = (*encodedBlock->cb->encoded.get())[j].encoded;
+            (encodedBlockBuffer.get())[idx].cb.encoded[j].count = (*encodedBlock->cb->encoded.get())[j].count;
         }
         // Write the encoded channel length to the buffer
-        encodedBlockBuffer[idx].cb.encoded_len = sz;
+        (encodedBlockBuffer.get())[idx].cb.encoded_len = sz;
         // Write the dict: chars + doubles pairs to the buffer
         int kv_idx = 0;
         for (std::map<double, char>::iterator iter = (
@@ -325,23 +319,23 @@ void writeToBuffer(
             iter != (*encodedBlock->cb->encode_table).end(); ++iter) {
             double double_val = iter->first;
             char char_val = iter->second;
-            encodedBlockBuffer[idx].cb.char_vals[kv_idx] = char_val;
-            encodedBlockBuffer[idx].cb.double_vals[kv_idx] = double_val;
+            (encodedBlockBuffer.get())[idx].cb.char_vals[kv_idx] = char_val;
+            (encodedBlockBuffer.get())[idx].cb.double_vals[kv_idx] = double_val;
             kv_idx++;
         }
         // Write the table size to the buffer
-        encodedBlockBuffer[idx].cb.table_size = kv_idx;
+        (encodedBlockBuffer.get())[idx].cb.table_size = kv_idx;
     }
 }
 
 // Convert encoded blocks from MPI buffer back to encoded blocks with pointers
 std::vector<std::shared_ptr<EncodedBlock>> convertBufferToEncodedBlocks(
-    EncodedBlockNoPtr* encodedBlocksBuffer, int numEncodedBlocks) {
+    std::shared_ptr<EncodedBlockNoPtr> encodedBlocksBuffer, int numEncodedBlocks) {
 
     std::vector<std::shared_ptr<EncodedBlock>> result;
 
     for (int i = 0; i < numEncodedBlocks; i++) {
-        EncodedBlockNoPtr block = encodedBlocksBuffer[i];
+        EncodedBlockNoPtr block = (encodedBlocksBuffer.get())[i];
         // Make result block shared pointers
         std::shared_ptr<EncodedBlock> resultBlock = std::make_shared<EncodedBlock>();
         resultBlock->y = std::make_shared<EncodedBlockColor>();

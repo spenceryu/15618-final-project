@@ -1,5 +1,7 @@
 #include <iostream>
 #include <fstream>
+#include <cstdarg>
+#include "CycleTimer.h"
 #include "getopt.h"
 #include "stdio.h"
 #include "lodepng/lodepng.h"
@@ -11,8 +13,18 @@
 
 #define MACROBLOCK_SIZE 8
 
-std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* outfile, const char* compressedFile) {
+void log(int rank, const char* format, ...) {
+    if (rank != 0) {
+        return;
+    }
+    va_list args;
+    va_start(args, format);
+    fprintf(stdout, format, args);
+    va_end(args);
+}
 
+std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* outfile, const char* compressedFile) {
+    fprintf(stdout, "running sequential version\n");
     std::vector<unsigned char> bytes; //the raw pixels
     unsigned int width, height;
 
@@ -139,6 +151,18 @@ void encodeSeq(const char* infile, const char* outfile, const char* compressedFi
 }
 
 void encodePar(const char* infile, const char* outfile, const char* compressedFile) {
+    // start parallel area
+    MPI_Status mpiStatus;
+    int numTasks, rank;
+    /* MPI_Init(&argc, &argv); */
+    MPI_Init(NULL, NULL);
+    MPI_Comm_size(MPI_COMM_WORLD, &numTasks);
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+
+    double startTime, endTime;
+
+    log(rank, "running parallel version\n");
+    startTime = CycleTimer::currentSeconds();
     std::vector<unsigned char> bytes; //the raw pixels
     unsigned int width, height;
 
@@ -147,18 +171,12 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     //if there's an error, display it
     if(error) {
-      std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
+        std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
     } else {
-      fprintf(stdout, "success decoding %s!\n", infile);
+        if (rank == 0) {
+            fprintf(stdout, "success decoding %s!\n", infile);
+        }
     }
-
-    // start parallel area
-    MPI_Status mpiStatus;
-    int numTasks, rank;
-    /* MPI_Init(&argc, &argv); */
-    MPI_Init(NULL, NULL);
-    MPI_Comm_size(MPI_COMM_WORLD, &numTasks);
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
     // Begin setup MPI structs
 
@@ -249,8 +267,9 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     int tag = 1;
     // SCATTER
+    log(rank, "SCATTER\n");
     // give each thread a section of bytes to convert to an image
-    fprintf(stdout, "convertBytesToImage()...\n");
+    log(rank, "convertBytesToImage()...\n");
     int numPixels;
     int len = bytes.size() / numTasks;
     int start = rank * len;
@@ -262,10 +281,11 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height, start, end);
 
     // each thread will continue and convert its image to ycbcr
-    fprintf(stdout, "convertRgbToYcbcr()...\n");
+    log(rank, "convertRgbToYcbcr()...\n");
     std::shared_ptr<ImageYcbcr> imageYcbcr = convertRgbToYcbcr(imageRgb);
 
     // GATHER
+    log(rank, "GATHER\n");
     // collect all images into the full image in master
     if (rank == 0) {
         for (int i = 1; i < numTasks; i++) {
@@ -304,7 +324,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> imageBlocksWorker;
 
     if (rank == 0) {
-        fprintf(stdout, "convertYcbcrToBlocks()...\n");
+        log(rank, "convertYcbcrToBlocks()...\n");
         std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
         width = imageBlocks->width;
         height = imageBlocks->height;
@@ -313,6 +333,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
          * BEGIN SCATTER
          * Purpose: send blocks out to threads
          */
+        log(rank, "SCATTER\n");
         
         // pixels in the blocks for each thread
         std::vector<std::shared_ptr<PixelYcbcr>> workerPixels[numTasks];
@@ -374,26 +395,26 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
      * Purpose: send blocks out to threads
      */
 
-    fprintf(stdout, "DCT()...\n");
+    // blocks stay in their threads
+    log(rank, "DCT()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
-    //for (auto block : imageBlocks->blocks) {
     for (auto block : imageBlocksWorker) {
         dcts.push_back(DCT(block, MACROBLOCK_SIZE, true));
     }
 
     // blocks stay in their threads
-    fprintf(stdout, "quantize()...\n");
+    log(rank, "quantize()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks;
     for (auto dct : dcts) {
         quantizedBlocks.push_back(quantize(dct, MACROBLOCK_SIZE, true));
     }
 
     // blocks stay in their threads
-    fprintf(stdout, "DPCM()...\n");
+    log(rank, "DPCM()...\n");
     DPCM(quantizedBlocks);
 
     // blocks stay in their threads
-    fprintf(stdout, "RLE()...\n");
+    log(rank, "RLE()...\n");
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
     for (auto quantizedBlock : quantizedBlocks) {
         encodedBlocks.push_back(RLE(quantizedBlock, MACROBLOCK_SIZE));
@@ -403,30 +424,48 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
      * BEGIN GATHER
      * Purpose: collect all blocks back into a vector of encoded blocks in master
      */
+    log(rank, "GATHER\n");
 
     // For master thread, collect encoded blocks in order from workers
     int numEncodedBlocks;
+    // encoded blocks for all threads
+    std::vector<std::shared_ptr<EncodedBlock>> allEncodedBlocks[numTasks];
+    // encoded blocks in original order
+    std::vector<std::shared_ptr<EncodedBlock>> finalEncodedBlocks;
     if (rank == 0) {
+        allEncodedBlocks[0] = encodedBlocks;
+        // grab all encoded blocks from workers
         for (int i = 1; i < numTasks; i++) {
             // recv the number of encoded blocks
-            MPI_Recv(&numEncodedBlocks, 1, MPI_INT, i, MPI_ANY_TAG,
-                MPI_COMM_WORLD, &mpiStatus);
+            MPI_Recv(&numEncodedBlocks, 1, MPI_INT, i, MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
             // recv the encoded blocks
-            EncodedBlockNoPtr encodedBlocksBuffer[numEncodedBlocks];
-            MPI_Recv(encodedBlocksBuffer, numEncodedBlocks, MPI_EncodedBlock, i,
-                MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
-            std::vector<std::shared_ptr<EncodedBlock>> encodedBlocksRecv =
-                convertBufferToEncodedBlocks(encodedBlocksBuffer, numEncodedBlocks);
+            std::shared_ptr<EncodedBlockNoPtr> encodedBlocksBuffer(new EncodedBlockNoPtr[numEncodedBlocks]);
+            MPI_Recv(encodedBlocksBuffer.get(), numEncodedBlocks, MPI_EncodedBlock, i, MPI_ANY_TAG, MPI_COMM_WORLD, &mpiStatus);
+            std::vector<std::shared_ptr<EncodedBlock>> encodedBlocksRecv = convertBufferToEncodedBlocks(encodedBlocksBuffer, numEncodedBlocks);
+            std::vector<std::shared_ptr<EncodedBlock>> threadEncodedBlocks;
             for (int j = 0; j < numEncodedBlocks; j++) {
-                encodedBlocks.push_back(encodedBlocksRecv[j]);
+                threadEncodedBlocks.push_back(encodedBlocksRecv[j]);
             }
+            allEncodedBlocks[i] = threadEncodedBlocks;
+        }
+        // find number of total encoded blocks
+        int totalEncodedBlocks = 0;
+        for (int i = 0; i < numTasks; i++) {
+            totalEncodedBlocks += allEncodedBlocks[i].size();
+        }
+        // reorder encoded blocks by original order
+        int indices[numTasks] = {};
+        for (int i = 0; i < totalEncodedBlocks; i++) {
+            int index = i % numTasks;
+            finalEncodedBlocks.push_back(allEncodedBlocks[index][indices[index]]);
+            indices[index]++;
         }
     } else {
         // For each worker, send its encoded blocks back to master
         numEncodedBlocks = encodedBlocks.size();
         // Send number of encoded blocks
         MPI_Send(&numEncodedBlocks, 1, MPI_INT, 0, tag, MPI_COMM_WORLD);
-        EncodedBlockNoPtr encodedBlockBuffer[numEncodedBlocks];
+        std::shared_ptr<EncodedBlockNoPtr> encodedBlockBuffer(new EncodedBlockNoPtr[numEncodedBlocks]);
         // Build the encoded blocks structure
         for (unsigned int i = 0; i < encodedBlocks.size(); i++) {
             writeToBuffer(encodedBlockBuffer, encodedBlocks, i, COLOR_Y);
@@ -434,8 +473,9 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
             writeToBuffer(encodedBlockBuffer, encodedBlocks, i, COLOR_CB);
         }
         // Send the encoded blocks
-        MPI_Send(&encodedBlockBuffer, numEncodedBlocks, MPI_EncodedBlock, 0,
-            tag, MPI_COMM_WORLD);
+        MPI_Send(encodedBlockBuffer.get(), numEncodedBlocks, MPI_EncodedBlock, 0, tag, MPI_COMM_WORLD);
+        MPI_Finalize();
+        return;
     }
 
     /*
@@ -447,35 +487,37 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         fprintf(stdout, "done encoding!\n");
         fprintf(stdout, "writing to file...\n");
         std::ofstream jpegFile(compressedFile);
-        for (const auto &block : encodedBlocks) {
+        for (const auto &block : finalEncodedBlocks) {
             jpegFile << block;
         }
         fprintf(stdout, "jpeg stored!\n");
+        endTime = CycleTimer::currentSeconds();
+        fprintf(stdout, "Time Elapsed: %.3fs\n", (endTime - startTime));
+        fprintf(stdout, "==============\n");
+        fprintf(stdout, "now let's undo the process...\n");
     }
-    fprintf(stdout, "==============\n");
-    fprintf(stdout, "now let's undo the process...\n");
 
     // TODO: SCATTER
     // send blocks out to threads
-    fprintf(stdout, "undoing RLE()...\n");
+    log(rank, "undoing RLE()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> decodedQuantizedBlocks;
-    for (auto encodedBlock : encodedBlocks) {
+    for (auto encodedBlock : finalEncodedBlocks) {
         decodedQuantizedBlocks.push_back(decodeRLE(encodedBlock, MACROBLOCK_SIZE));
     }
 
     // blocks stay in their threads
-    fprintf(stdout, "undoing DPCM()...\n");
+    log(rank, "undoing DPCM()...\n");
     unDPCM(decodedQuantizedBlocks);
 
     // blocks stay in their threads
-    fprintf(stdout, "undoing quantize()...\n");
+    log(rank, "undoing quantize()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> unquantizedBlocks;
     for (auto decodedQuantizedBlock : decodedQuantizedBlocks) {
         unquantizedBlocks.push_back(unquantize(decodedQuantizedBlock, MACROBLOCK_SIZE, true));
     }
 
     // blocks stay in their threads
-    fprintf(stdout, "undoing DCT()...\n");
+    log(rank, "undoing DCT()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> idcts;
     for (auto unquantized : unquantizedBlocks) {
         idcts.push_back(IDCT(unquantized, MACROBLOCK_SIZE, true));
@@ -483,7 +525,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     // TODO: GATHER
     // collect all blocks back into a vector of blocks in master
-    fprintf(stdout, "undoing convertYcbcrToBlocks()...\n");
+    log(rank, "undoing convertYcbcrToBlocks()...\n");
     std::shared_ptr<ImageBlocks> imageBlocksIdct(new ImageBlocks);
     imageBlocksIdct->blocks = idcts;
     imageBlocksIdct->width = width;
@@ -492,11 +534,11 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     // TODO: SCATTER
     // give each thread an image with a section of the pixels to convert to rgb
-    fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
+    log(rank, "undoing convertRgbToYcbcr()...\n");
     std::shared_ptr<ImageRgb> imageRgbRecovered = convertYcbcrToRgb(imgFromBlocks);
 
     // each thread will continue and convert its image back to bytes
-    fprintf(stdout, "undoing convertImageToBytes()...\n");
+    log(rank, "undoing convertImageToBytes()...\n");
     std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgbRecovered);
 
     // TODO: GATHER
@@ -540,10 +582,8 @@ int main(int argc, char** argv) {
     }
 
     if (parallel) {
-        fprintf(stdout, "running parallel version\n");
         encodePar("raw_images/cookie2.png", "images/cookie2.png", "compressed/cookie2.jpeg");
     } else {
-        fprintf(stdout, "running sequential version\n");
         encodeSeq("raw_images/cookie2.png", "images/cookie2.png", "compressed/cookie2.jpeg");
     }
 

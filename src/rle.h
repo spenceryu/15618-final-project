@@ -79,11 +79,11 @@ std::vector<std::shared_ptr<PixelYcbcr>> decodeRLE(
 );
 
 void writeToBuffer(
-    EncodedBlockNoPtr* encodedBlockBuffer,
+    std::shared_ptr<EncodedBlockNoPtr> encodedBlockBuffer,
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks,
     int idx, int chan
 );
 
 std::vector<std::shared_ptr<EncodedBlock>> convertBufferToEncodedBlocks(
-    EncodedBlockNoPtr* encodedBlocksBuffer, int numEncodedBlocks
+    std::shared_ptr<EncodedBlockNoPtr> encodedBlocksBuffer, int numEncodedBlocks
 );
