@@ -253,7 +253,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     // End setup for MPI Structs
 
-    // SCATTER
+    // TODO: SCATTER
     // give each thread a section of bytes to convert to an image
     fprintf(stdout, "convertBytesToImage()...\n");
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
@@ -262,7 +262,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     fprintf(stdout, "convertRgbToYcbcr()...\n");
     std::shared_ptr<ImageYcbcr> imageYcbcr = convertRgbToYcbcr(imageRgb);
 
-    // GATHER
+    // TODO: GATHER
     // collect all images into the full image in master
     fprintf(stdout, "convertYcbcrToBlocks()...\n");
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
@@ -270,7 +270,8 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     height = imageBlocks->height;
 
     /*
-     * SCATTER
+     * BEGIN SCATTER
+     * Purpose: send blocks out to threads
      */
     int numPixels;
     int tag = 1;
@@ -431,7 +432,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     fprintf(stdout, "==============\n");
     fprintf(stdout, "now let's undo the process...\n");
 
-    // SCATTER
+    // TODO: SCATTER
     // send blocks out to threads
     fprintf(stdout, "undoing RLE()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> decodedQuantizedBlocks;
@@ -457,7 +458,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         idcts.push_back(IDCT(unquantized, MACROBLOCK_SIZE, true));
     }
 
-    // GATHER
+    // TODO: GATHER
     // collect all blocks back into a vector of blocks in master
     fprintf(stdout, "undoing convertYcbcrToBlocks()...\n");
     std::shared_ptr<ImageBlocks> imageBlocksIdct(new ImageBlocks);
@@ -466,7 +467,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     imageBlocksIdct->height = height;
     std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(imageBlocksIdct, MACROBLOCK_SIZE);
 
-    // SCATTER
+    // TODO: SCATTER
     // give each thread an image with a section of the pixels to convert to rgb
     fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
     std::shared_ptr<ImageRgb> imageRgbRecovered = convertYcbcrToRgb(imgFromBlocks);
@@ -475,7 +476,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     fprintf(stdout, "undoing convertImageToBytes()...\n");
     std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgbRecovered);
 
-    // GATHER
+    // TODO: GATHER
     // collect all bytes back into the full bytes vector for the image in master
     if (rank == 0) {
         error = lodepng::encode(outfile, imgRecovered, width, height);
