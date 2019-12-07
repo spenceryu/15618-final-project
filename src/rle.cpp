@@ -257,30 +257,33 @@ void writeToBuffer(
     std::shared_ptr<EncodedBlock> encodedBlock = encodedBlocks[idx];
 
     // Write the DC value to the buffer
-    encodedBlockBuffer[idx].y.dc_val = encodedBlock.dc_val;
+    encodedBlockBuffer[idx].y.dc_val = encodedBlock->y->dc_val;
 
-    for (unsigned int i = 0; i < encodedBlock.size(); i++) {
-        if (chan == COLOR_Y) {
-            // Write the encoded channel values to the buffer
-            for (unsigned int j = 0; j < encodedBlock.y.encoded.size(); j++) {
-                encodedBlockBuffer[idx].y.encoded[j].encoded = encodedBlock->y->encoded[j].encoded;
-                encodedBlockBuffer[idx].y.encoded[j].count = encodedBlock->y->encoded[j].count;
-            }
-            // Write the encoded channel length to the buffer
-            encodedBlockBuffer[idx].y.encoded_len = encodedBlock.y.encoded.size();
-            // Write the dict: chars + doubles pairs to the buffer
-            char kv_idx = 0;
-            for (std::map<char, double>::iterator iter = encodedBlock->encode_table.begin();
-                iter != encodedBlock->encode_table.end(); ++iter) {
-                char char_val = iter->first;
-                double double_val = iter->second;
-                encodedBlockBuffer[idx].y.char_vals[kv_idx] = char_val;
-                encodedBlockBuffer[idx].y.double_vals[kv_idx] = double_val;
-                kv_idx++;
-            }
-            // Write the table size to the buffer
-            encodedBlockBuffer[idx].y.table_size = kv_idx;
+    if (chan == COLOR_Y) {
+        // Write the encoded channel values to the buffer
+        unsigned int sz = (*encodedBlock->y->encoded.get()).size();
+        for (unsigned int j = 0; j < sz; j++) {
+            encodedBlockBuffer[idx].y.encoded[j].encoded = (
+                *encodedBlock->y->encoded.get())[j].encoded;
+            encodedBlockBuffer[idx].y.encoded[j].count = (
+                *encodedBlock->y->encoded.get())[j].count;
         }
-    } // TODO add two more color switches
+        // Write the encoded channel length to the buffer
+        encodedBlockBuffer[idx].y.encoded_len = sz;
+        // Write the dict: chars + doubles pairs to the buffer
+        int kv_idx = 0;
+        for (std::map<double, char>::iterator iter = (
+            *encodedBlock->y->encode_table).begin();
+            iter != (*encodedBlock->y->encode_table).end(); ++iter) {
+            double double_val = iter->first;
+            char char_val = iter->second;
+            encodedBlockBuffer[idx].y.char_vals[kv_idx] = char_val;
+            encodedBlockBuffer[idx].y.double_vals[kv_idx] = double_val;
+            kv_idx++;
+        }
+        // Write the table size to the buffer
+        encodedBlockBuffer[idx].y.table_size = kv_idx;
+    }
+    // TODO add two more color switches
 
 }
