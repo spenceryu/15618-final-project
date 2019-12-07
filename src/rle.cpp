@@ -1,7 +1,3 @@
-#define COLOR_Y  0
-#define COLOR_CR 1
-#define COLOR_CB 2
-
 #include <algorithm>
 #include "rle.h"
 
@@ -208,7 +204,6 @@ std::shared_ptr<EncodedBlockColor> buildTable(
 
 
 // Encode values using frequency mapping for a single color channel
-// TODO: change all color channel data vals post-quantization to be ints instead of doubles
 void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_ptr<EncodedBlockColor> color, int chan) {
 
     std::vector<double> chan_vals = extractChannel(block, chan);
@@ -251,3 +246,163 @@ void encodeValues(std::vector<std::shared_ptr<PixelYcbcr>> block, std::shared_pt
     (*color->encoded).push_back(rleTuple);
 }
 
+// Write the encoded blocks  without pointers from the
+// worker to buffer for MPI send back to master
+void writeToBuffer(
+    EncodedBlockNoPtr* encodedBlockBuffer,
+    std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks,
+    int idx, int chan) {
+
+    // Get encoded block from vector of encoded blocks
+    std::shared_ptr<EncodedBlock> encodedBlock = encodedBlocks[idx];
+
+    // Write the DC value to the buffer
+    encodedBlockBuffer[idx].y.dc_val = encodedBlock->y->dc_val;
+
+    if (chan == COLOR_Y) {
+        // Write the encoded channel values to the buffer
+        unsigned int sz = (*encodedBlock->y->encoded.get()).size();
+        for (unsigned int j = 0; j < sz; j++) {
+            encodedBlockBuffer[idx].y.encoded[j].encoded = (
+                *encodedBlock->y->encoded.get())[j].encoded;
+            encodedBlockBuffer[idx].y.encoded[j].count = (
+                *encodedBlock->y->encoded.get())[j].count;
+        }
+        // Write the encoded channel length to the buffer
+        encodedBlockBuffer[idx].y.encoded_len = sz;
+        // Write the dict: chars + doubles pairs to the buffer
+        int kv_idx = 0;
+        for (std::map<double, char>::iterator iter = (
+            *encodedBlock->y->encode_table).begin();
+            iter != (*encodedBlock->y->encode_table).end(); ++iter) {
+            double double_val = iter->first;
+            char char_val = iter->second;
+            encodedBlockBuffer[idx].y.char_vals[kv_idx] = char_val;
+            encodedBlockBuffer[idx].y.double_vals[kv_idx] = double_val;
+            kv_idx++;
+        }
+        // Write the table size to the buffer
+        encodedBlockBuffer[idx].y.table_size = kv_idx;
+    } else if (chan == COLOR_CR) {
+        // Write the encoded channel values to the buffer
+        unsigned int sz = (*encodedBlock->cr->encoded.get()).size();
+        for (unsigned int j = 0; j < sz; j++) {
+            encodedBlockBuffer[idx].cr.encoded[j].encoded = (
+                *encodedBlock->cr->encoded.get())[j].encoded;
+            encodedBlockBuffer[idx].cr.encoded[j].count = (
+                *encodedBlock->cr->encoded.get())[j].count;
+        }
+        // Write the encoded channel length to the buffer
+        encodedBlockBuffer[idx].cr.encoded_len = sz;
+        // Write the dict: chars + doubles pairs to the buffer
+        int kv_idx = 0;
+        for (std::map<double, char>::iterator iter = (
+            *encodedBlock->cr->encode_table).begin();
+            iter != (*encodedBlock->cr->encode_table).end(); ++iter) {
+            double double_val = iter->first;
+            char char_val = iter->second;
+            encodedBlockBuffer[idx].cr.char_vals[kv_idx] = char_val;
+            encodedBlockBuffer[idx].cr.double_vals[kv_idx] = double_val;
+            kv_idx++;
+        }
+        // Write the table size to the buffer
+        encodedBlockBuffer[idx].cr.table_size = kv_idx;
+    } else { // chan == COLOR_CB
+        // Write the encoded channel values to the buffer
+        unsigned int sz = (*encodedBlock->cb->encoded.get()).size();
+        for (unsigned int j = 0; j < sz; j++) {
+            encodedBlockBuffer[idx].cb.encoded[j].encoded = (
+                *encodedBlock->cb->encoded.get())[j].encoded;
+            encodedBlockBuffer[idx].cb.encoded[j].count = (
+                *encodedBlock->cb->encoded.get())[j].count;
+        }
+        // Write the encoded channel length to the buffer
+        encodedBlockBuffer[idx].cb.encoded_len = sz;
+        // Write the dict: chars + doubles pairs to the buffer
+        int kv_idx = 0;
+        for (std::map<double, char>::iterator iter = (
+            *encodedBlock->cb->encode_table).begin();
+            iter != (*encodedBlock->cb->encode_table).end(); ++iter) {
+            double double_val = iter->first;
+            char char_val = iter->second;
+            encodedBlockBuffer[idx].cb.char_vals[kv_idx] = char_val;
+            encodedBlockBuffer[idx].cb.double_vals[kv_idx] = double_val;
+            kv_idx++;
+        }
+        // Write the table size to the buffer
+        encodedBlockBuffer[idx].cb.table_size = kv_idx;
+    }
+}
+
+// Convert encoded blocks from MPI buffer back to encoded blocks with pointers
+std::vector<std::shared_ptr<EncodedBlock>> convertBufferToEncodedBlocks(
+    EncodedBlockNoPtr* encodedBlocksBuffer, int numEncodedBlocks) {
+
+    std::vector<std::shared_ptr<EncodedBlock>> result;
+
+    for (int i = 0; i < numEncodedBlocks; i++) {
+        EncodedBlockNoPtr block = encodedBlocksBuffer[i];
+        // Make result block shared pointers
+        std::shared_ptr<EncodedBlock> resultBlock = std::make_shared<EncodedBlock>();
+        resultBlock->y = std::make_shared<EncodedBlockColor>();
+        resultBlock->cr = std::make_shared<EncodedBlockColor>();
+        resultBlock->cb = std::make_shared<EncodedBlockColor>();
+        resultBlock->y->encoded = std::make_shared<std::vector<RleTuple>>();
+        resultBlock->cr->encoded = std::make_shared<std::vector<RleTuple>>();
+        resultBlock->cb->encoded = std::make_shared<std::vector<RleTuple>>();
+        resultBlock->y->decode_table = std::make_shared<std::map<char, double>>();
+        resultBlock->cr->decode_table = std::make_shared<std::map<char, double>>();
+        resultBlock->cb->decode_table = std::make_shared<std::map<char, double>>();
+        resultBlock->y->encode_table = std::make_shared<std::map<double,char>>();
+        resultBlock->cr->encode_table = std::make_shared<std::map<double,char>>();
+        resultBlock->cb->encode_table = std::make_shared<std::map<double,char>>();
+        // Copy back dc values
+        resultBlock->y->dc_val = block.y.dc_val;
+        resultBlock->cr->dc_val = block.cr.dc_val;
+        resultBlock->cb->dc_val = block.cb.dc_val;
+        // Copy back encoded RleTuples
+        for (int j = 0; j < block.y.encoded_len; j++) {
+            RleTuple rleTuple;
+            rleTuple.encoded = block.y.encoded[j].encoded;
+            rleTuple.count = block.y.encoded[j].count;
+            (*resultBlock->y->encoded.get()).push_back(rleTuple);
+        }
+        for (int j = 0; j < block.cb.encoded_len; j++) {
+            RleTuple rleTuple;
+            rleTuple.encoded = block.cb.encoded[j].encoded;
+            rleTuple.count = block.cb.encoded[j].count;
+            (*resultBlock->cb->encoded.get()).push_back(rleTuple);
+        }
+        for (int j = 0; j < block.cr.encoded_len; j++) {
+            RleTuple rleTuple;
+            rleTuple.encoded = block.cr.encoded[j].encoded;
+            rleTuple.count = block.cr.encoded[j].count;
+            (*resultBlock->cr->encoded.get()).push_back(rleTuple);
+        }
+        // Copy back encode_table & decode_table
+        char char_val;
+        double double_val;
+        for (int j = 0; j < block.y.table_size; j++) {
+            char_val = block.y.char_vals[j];
+            double_val = block.y.double_vals[j];
+            (*resultBlock->y->encode_table.get())[double_val] = char_val;
+            (*resultBlock->y->decode_table.get())[char_val] = double_val;
+        }
+        for (int j = 0; j < block.cb.table_size; j++) {
+            char_val = block.cb.char_vals[j];
+            double_val = block.cb.double_vals[j];
+            (*resultBlock->cb->encode_table.get())[double_val] = char_val;
+            (*resultBlock->cb->decode_table.get())[char_val] = double_val;
+        }
+        for (int j = 0; j < block.cr.table_size; j++) {
+            char_val = block.cr.char_vals[j];
+            double_val = block.cr.double_vals[j];
+            (*resultBlock->cr->encode_table.get())[double_val] = char_val;
+            (*resultBlock->cr->decode_table.get())[char_val] = double_val;
+        }
+        // Push back result
+        result.push_back(resultBlock);
+    }
+
+    return result;
+}
