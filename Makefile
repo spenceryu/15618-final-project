@@ -4,8 +4,8 @@ IMGDIR=images
 COMPDIR=compressed
 PNGDIR=lodepng
 CXX=mpic++ -m64
-CXXFLAGSDEBUG=-ggdb -O0 -Wall -std=c++11
-CXXFLAGS=-O3 -Wall -std=c++11
+CXXFLAGSDEBUG=-ggdb -O0 -Wall -std=c++11 -fopenmp
+CXXFLAGS=-O3 -Wall -std=c++11 -fopenmp
 
 OBJS=$(OBJDIR)/main.o $(OBJDIR)/$(PNGDIR)/lodepng.o $(OBJDIR)/dct.o $(OBJDIR)/image.o $(OBJDIR)/quantize.o $(OBJDIR)/rle.o $(OBJDIR)/dpcm.o
 
