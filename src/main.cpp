@@ -25,11 +25,16 @@ void log(int rank, const char* format, ...) {
 
 std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* outfile, const char* compressedFile) {
     fprintf(stdout, "running sequential version\n");
+
+    double startTime = CycleTimer::currentSeconds();
+
     std::vector<unsigned char> bytes; //the raw pixels
     unsigned int width, height;
 
     //decode
+    double loadImageStartTime = CycleTimer::currentSeconds();
     unsigned int error = lodepng::decode(bytes, width, height, infile);
+    double loadImageStopTime = CycleTimer::currentSeconds();
 
     //if there's an error, display it
     if(error) {
@@ -40,49 +45,92 @@ std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* outfile, co
 
     //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
     fprintf(stdout, "convertBytesToImage()...\n");
+    double convertBytesToImageStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
+    double convertBytesToImageEndTime = CycleTimer::currentSeconds();
 
     fprintf(stdout, "convertRgbToYcbcr()...\n");
+    double convertRgbToYcbcrStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageYcbcr> imageYcbcr = convertRgbToYcbcr(imageRgb);
+    double convertRgbToYcbcrEndTime = CycleTimer::currentSeconds();
 
     fprintf(stdout, "convertYcbcrToBlocks()...\n");
+    double convertYcbcrToBlocksStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
     width = imageBlocks->width;
     height = imageBlocks->height;
+    double convertYcbcrToBlocksEndTime = CycleTimer::currentSeconds();
 
     fprintf(stdout, "DCT()...\n");
+    double dctStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
     for (auto block : imageBlocks->blocks) {
         dcts.push_back(DCT(block, MACROBLOCK_SIZE, true));
     }
+    double dctEndTime = CycleTimer::currentSeconds();
 
     fprintf(stdout, "quantize()...\n");
+    double quantizeStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks;
     for (auto dct : dcts) {
         quantizedBlocks.push_back(quantize(dct, MACROBLOCK_SIZE, true));
     }
+    double quantizeEndTime = CycleTimer::currentSeconds();
 
     fprintf(stdout, "DPCM()...\n");
+    double dpcmStartTime = CycleTimer::currentSeconds();
     DPCM(quantizedBlocks);
+    double dpcmEndTime = CycleTimer::currentSeconds();
 
     fprintf(stdout, "RLE()...\n");
+    double rleStartTime = CycleTimer::currentSeconds();
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
     for (auto quantizedBlock : quantizedBlocks) {
         encodedBlocks.push_back(RLE(quantizedBlock, MACROBLOCK_SIZE));
     }
+    double rleEndTime = CycleTimer::currentSeconds();
 
     fprintf(stdout, "done encoding!\n");
     fprintf(stdout, "writing to file...\n");
+    double writeCompressedImageStartTime = CycleTimer::currentSeconds();
     std::ofstream jpegFile(compressedFile);
     for (const auto &block : encodedBlocks) {
         jpegFile << block;
     }
+    double writeCompressedImageEndTime = CycleTimer::currentSeconds();
     fprintf(stdout, "jpeg stored!\n");
 
     std::shared_ptr<JpegEncoded> result = std::make_shared<JpegEncoded>();
     result->encodedBlocks = encodedBlocks;
     result->width = width;
     result->height = height;
+
+    double endTime = CycleTimer::currentSeconds();
+
+    fprintf(stdout,
+    "=======================================\n"
+    "= Sequential encoding performance: \n"
+    "=======================================\n"
+    "Load Image: %.3fs\n"
+    "Convert Bytes to Image: %.3fs\n"
+    "Convert RGB to YCbCr: %.3fs\n"
+    "Convert YCbCr to Blocks: %.3fs\n"
+    "DCT: %.3fs\n"
+    "Quantize: %.3fs\n"
+    "DPCM: %.3fs\n"
+    "RLE: %.3fs\n"
+    "Encode Compressed Image: %.3fs\n"
+    "Total time: %.3fs\n",
+    loadImageStopTime - loadImageStartTime,
+    convertBytesToImageEndTime - convertBytesToImageStartTime,
+    convertRgbToYcbcrEndTime - convertRgbToYcbcrStartTime,
+    convertYcbcrToBlocksEndTime - convertYcbcrToBlocksStartTime,
+    dctEndTime - dctStartTime,
+    quantizeEndTime - quantizeStartTime,
+    dpcmEndTime - dpcmStartTime,
+    rleEndTime - rleStartTime,
+    writeCompressedImageEndTime - writeCompressedImageStartTime,
+    endTime - startTime);
 
     return result;
 }
@@ -159,10 +207,10 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     MPI_Comm_size(MPI_COMM_WORLD, &numTasks);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
 
-    double startTime, endTime;
+    double endTime = CycleTimer::currentSeconds();
 
     log(rank, "running parallel version\n");
-    startTime = CycleTimer::currentSeconds();
+    double startTime = CycleTimer::currentSeconds();
     std::vector<unsigned char> bytes; //the raw pixels
     unsigned int width, height;
 
@@ -615,7 +663,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         "=======================================\n"
         "Load image: %.3fs\n"
         "Setup MPI: %.3fs\n"
-        "Convert Image to Bytes: %.3fs\n"
+        "Convert Bytes to Image: %.3fs\n"
         "Convert RGB to YCbCr: %.3fs\n"
         "Gather YCbCr Pixels: %.3fs\n"
         "Convert YCbCr to Blocks: %.3fs\n"
