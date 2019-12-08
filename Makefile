@@ -25,7 +25,7 @@ dirs:
 		mkdir -p $(COMPDIR)
 
 clean:
-		rm -rf $(OBJSMPISEQ) $(OBJSOMP)$(OBJDIR) $(IMGDIR) $(COMPDIR) *~ $(EXECUTABLE) $(OMPEXEC) $(LOGS)
+		rm -rf $(OBJSMPISEQ) $(OBJSOMP) $(OBJDIR) $(IMGDIR) $(COMPDIR) *~ $(EXECUTABLE) $(OMPEXEC) $(LOGS)
 
 $(EXECUTABLE): dirs $(OBJSMPISEQ) $(OBJS)
 		# $(CXX) $(CXXFLAGSDEBUG) -o $@ $(OBJS) $(LDFLAGS)

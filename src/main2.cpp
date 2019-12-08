@@ -9,7 +9,6 @@
 #include "quantize.h"
 #include "dpcm.h"
 #include "rle.h"
-#include "mpi.h"
 #include <omp.h>
 
 #define MACROBLOCK_SIZE 8
