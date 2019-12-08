@@ -1,18 +1,22 @@
 EXECUTABLE=compress-bin
+OMPEXEC=compress-bin-omp
 OBJDIR=objs
 IMGDIR=images
 COMPDIR=compressed
 PNGDIR=lodepng
 CXX=mpic++ -m64
-CXXFLAGSDEBUG=-ggdb -O0 -Wall -std=c++11 -fopenmp
-CXXFLAGS=-O3 -Wall -std=c++11 -fopenmp
+CXXOMP=g++ -m64 -fopenmp
+CXXFLAGSDEBUG=-ggdb -O0 -Wall -std=c++11
+CXXFLAGS=-O3 -Wall -std=c++11
 
-OBJS=$(OBJDIR)/main.o $(OBJDIR)/$(PNGDIR)/lodepng.o $(OBJDIR)/dct.o $(OBJDIR)/image.o $(OBJDIR)/quantize.o $(OBJDIR)/rle.o $(OBJDIR)/dpcm.o
+OBJSMPISEQ=$(OBJDIR)/main.o
+OBJSOMP=$(OBJDIR)/main2.o
+OBJS=$(OBJDIR)/$(PNGDIR)/lodepng.o $(OBJDIR)/dct.o $(OBJDIR)/image.o $(OBJDIR)/quantize.o $(OBJDIR)/rle.o $(OBJDIR)/dpcm.o
 
 
 .PHONY: default dirs clean
 
-default: $(EXECUTABLE)
+default: $(EXECUTABLE) $(OMPEXEC)
 
 dirs:
 		mkdir -p $(OBJDIR)
@@ -21,11 +25,14 @@ dirs:
 		mkdir -p $(COMPDIR)
 
 clean:
-		rm -rf $(OBJDIR) $(IMGDIR) $(COMPDIR) *~ $(EXECUTABLE) $(LOGS)
+		rm -rf $(OBJSMPISEQ) $(OBJSOMP)$(OBJDIR) $(IMGDIR) $(COMPDIR) *~ $(EXECUTABLE) $(LOGS)
 
-$(EXECUTABLE): dirs $(OBJS)
+$(EXECUTABLE): dirs $(OBJSMPISEQ) $(OBJS)
 		# $(CXX) $(CXXFLAGSDEBUG) -o $@ $(OBJS) $(LDFLAGS)
-		$(CXX) $(CXXFLAGS) -o $@ $(OBJS) $(LDFLAGS)
+		$(CXX) $(CXXFLAGS) -o $@ $(OBJSMPISEQ) $(OBJS) $(LDFLAGS)
+
+$(OMPEXEC): dirs $(OBJSOMP) $(OBJS)
+		$(CXXOMP) $(CXXFLAGS) -o $@ $(OBJSOMP) $(OBJS) $(LDFLAGS)
 
 $(OBJDIR)/%.o: src/%.cpp
 		# $(CXX) $< $(CXXFLAGSDEBUG) -c -o $@
