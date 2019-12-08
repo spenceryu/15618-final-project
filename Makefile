@@ -25,7 +25,7 @@ dirs:
 		mkdir -p $(COMPDIR)
 
 clean:
-		rm -rf $(OBJSMPISEQ) $(OBJSOMP)$(OBJDIR) $(IMGDIR) $(COMPDIR) *~ $(EXECUTABLE) $(LOGS)
+		rm -rf $(OBJSMPISEQ) $(OBJSOMP)$(OBJDIR) $(IMGDIR) $(COMPDIR) *~ $(EXECUTABLE) $(OMPEXEC) $(LOGS)
 
 $(EXECUTABLE): dirs $(OBJSMPISEQ) $(OBJS)
 		# $(CXX) $(CXXFLAGSDEBUG) -o $@ $(OBJS) $(LDFLAGS)
@@ -33,6 +33,12 @@ $(EXECUTABLE): dirs $(OBJSMPISEQ) $(OBJS)
 
 $(OMPEXEC): dirs $(OBJSOMP) $(OBJS)
 		$(CXXOMP) $(CXXFLAGS) -o $@ $(OBJSOMP) $(OBJS) $(LDFLAGS)
+
+$(OBJSMPISEQ): src/main.cpp
+		$(CXX) $< $(CXXFLAGS) -c -o $@
+
+$(OBJSOMP): src/main2.cpp
+		$(CXXOMP) $< $(CXXFLAGS) -c -o $@
 
 $(OBJDIR)/%.o: src/%.cpp
 		# $(CXX) $< $(CXXFLAGSDEBUG) -c -o $@

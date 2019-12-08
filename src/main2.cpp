@@ -321,7 +321,7 @@ int main(int argc, char** argv) {
                 omp = 1;
                 break;
             default:
-                fprintf(stderr, "Usage: ./compress [o]\n");
+                fprintf(stderr, "Usage: %s [o]\n", argv[0]);
                 exit(EXIT_FAILURE);
         }
     }

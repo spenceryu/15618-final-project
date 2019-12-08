@@ -43,5 +43,6 @@ images/*
 # compressed image files
 compressed/*
 
-# executable
+# executables
 compress-bin
+compress-bin-omp

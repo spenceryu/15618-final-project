@@ -19,7 +19,7 @@ then
     ./compress-bin
 elif [[ "$1" = "o" ]]
 then
-    ./compress-bin -o
+    ./compress-bin-omp -o
 elif [[ "$1" = "p" ]]
 then
     mpirun -np "$2" ./compress-bin -p

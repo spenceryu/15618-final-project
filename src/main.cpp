@@ -700,7 +700,7 @@ int main(int argc, char** argv) {
                 mpi = 1;
                 break;
             default:
-                fprintf(stderr, "Usage: ./compress [p]\n");
+                fprintf(stderr, "Usage: %s [p]\n", argv[0]);
                 exit(EXIT_FAILURE);
         }
     }
