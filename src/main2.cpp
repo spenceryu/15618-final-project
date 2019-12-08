@@ -260,8 +260,9 @@ std::shared_ptr<JpegEncoded> encodeOmp(const char* infile, const char* outfile, 
     fprintf(stdout, "RLE()...\n");
     double rleStartTime = CycleTimer::currentSeconds();
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
-    #pragma OMP parallel for
-    for (auto quantizedBlock : quantizedBlocks) {
+    #pragma omp parallel for
+    for (unsigned int i = 0; i < quantizedBlocks.size(); i++) {
+        std::vector<std::shared_ptr<PixelYcbcr>> quantizedBlock = quantizedBlocks[i];
         encodedBlocks.push_back(RLE(quantizedBlock, MACROBLOCK_SIZE));
     }
     double rleEndTime = CycleTimer::currentSeconds();

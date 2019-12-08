@@ -4,8 +4,8 @@ OBJDIR=objs
 IMGDIR=images
 COMPDIR=compressed
 PNGDIR=lodepng
-CXX=mpic++ -m64
-CXXOMP=g++ -m64 -fopenmp
+CXXMPI=mpic++ -m64
+CXXOMP=$(CXX) -fopenmp -m64
 CXXFLAGSDEBUG=-ggdb -O0 -Wall -std=c++11
 CXXFLAGS=-O3 -Wall -std=c++11
 
@@ -29,22 +29,22 @@ clean:
 
 $(EXECUTABLE): dirs $(OBJSMPISEQ) $(OBJS)
 		# $(CXX) $(CXXFLAGSDEBUG) -o $@ $(OBJS) $(LDFLAGS)
-		$(CXX) $(CXXFLAGS) -o $@ $(OBJSMPISEQ) $(OBJS) $(LDFLAGS)
+		$(CXXMPI) $(CXXFLAGS) -o $@ $(OBJSMPISEQ) $(OBJS) $(LDFLAGS)
 
 $(OMPEXEC): dirs $(OBJSOMP) $(OBJS)
 		$(CXXOMP) $(CXXFLAGS) -o $@ $(OBJSOMP) $(OBJS) $(LDFLAGS)
 
 $(OBJSMPISEQ): src/main.cpp
-		$(CXX) $< $(CXXFLAGS) -c -o $@
+		$(CXXMPI) $< $(CXXFLAGS) -c -o $@
 
 $(OBJSOMP): src/main2.cpp
 		$(CXXOMP) $< $(CXXFLAGS) -c -o $@
 
 $(OBJDIR)/%.o: src/%.cpp
 		# $(CXX) $< $(CXXFLAGSDEBUG) -c -o $@
-		$(CXX) $< $(CXXFLAGS) -c -o $@
+		$(CXXMPI) $< $(CXXFLAGS) -c -o $@
 
 $(OBJDIR)/$(PNGDIR)/%.o: src/$(PNGDIR)/%.cpp
 		# $(CXX) $< $(CXXFLAGSDEBUG) -c -o $@
-		$(CXX) $< $(CXXFLAGS) -c -o $@
+		$(CXXMPI) $< $(CXXFLAGS) -c -o $@
 
