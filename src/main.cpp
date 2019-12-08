@@ -167,7 +167,9 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     unsigned int width, height;
 
     //decode
+    double loadImageStartTime = CycleTimer::currentSeconds();
     unsigned int error = lodepng::decode(bytes, width, height, infile);
+    double loadImageEndTime = CycleTimer::currentSeconds();
 
     //if there's an error, display it
     if(error) {
@@ -179,7 +181,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     }
 
     // Begin setup MPI structs
-
+    double mpiSetupStartTime = CycleTimer::currentSeconds();
     // set up mpi pixelycbcr
     // float y, cb, cr
     MPI_Datatype MPI_PixelYcbcr;
@@ -262,14 +264,17 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     MPI_Datatype MPI_EncodedBlock;
     MPI_Type_contiguous(3, MPI_EncodedBlockColor, &MPI_EncodedBlock);
     MPI_Type_commit(&MPI_EncodedBlock);
-
+    double mpiSetupEndTime = CycleTimer::currentSeconds();
     // End setup for MPI Structs
 
     int tag = 1;
-    // SCATTER
+    /*
+     * BEGIN SCATTER
+     * Purpose: give each thread a section of bytes to convert to an image
+     */
     log(rank, "SCATTER\n");
-    // give each thread a section of bytes to convert to an image
     log(rank, "convertBytesToImage()...\n");
+    double convertBytesToImageStartTime = CycleTimer::currentSeconds();
     int numPixels;
     int len = bytes.size() / numTasks;
     int start = rank * len;
@@ -279,14 +284,20 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         end = bytes.size();
     }
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height, start, end);
+    double convertBytesToImageEndTime = CycleTimer::currentSeconds();
 
     // each thread will continue and convert its image to ycbcr
     log(rank, "convertRgbToYcbcr()...\n");
+    double convertRgbToYcbcrStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageYcbcr> imageYcbcr = convertRgbToYcbcr(imageRgb);
+    double convertRgbToYcbcrEndTime = CycleTimer::currentSeconds();
 
-    // GATHER
+    /*
+     * BEGIN GATHER
+     * Purpose: collect all images into the full image in master
+     */
     log(rank, "GATHER\n");
-    // collect all images into the full image in master
+    double gatherYcbcrPixelsStartTime = CycleTimer::currentSeconds();
     if (rank == 0) {
         for (int i = 1; i < numTasks; i++) {
             start = i * len;
@@ -320,11 +331,17 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         }
         MPI_Send(buffer.get(), imageYcbcr->numPixels, MPI_PixelYcbcr, 0, tag, MPI_COMM_WORLD);
     }
+    double gatherYcbcrPixelsEndTime = CycleTimer::currentSeconds();
+    /*
+     * END GATHER
+     */
 
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> imageBlocksWorker;
 
+    double convertYcbcrToBlocksStartTime = CycleTimer::currentSeconds();
     if (rank == 0) {
         log(rank, "convertYcbcrToBlocks()...\n");
+
         std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
         width = imageBlocks->width;
         height = imageBlocks->height;
@@ -334,7 +351,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
          * Purpose: send blocks out to threads
          */
         log(rank, "SCATTER\n");
-        
+
         // pixels in the blocks for each thread
         std::vector<std::shared_ptr<PixelYcbcr>> workerPixels[numTasks];
 
@@ -389,7 +406,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
         imageBlocksWorker = blocks;
     }
-
+    double convertYcbcrToBlocksEndTime = CycleTimer::currentSeconds();
     /*
      * END SCATTER
      * Purpose: send blocks out to threads
@@ -397,35 +414,43 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     // blocks stay in their threads
     log(rank, "DCT()...\n");
+    double dctStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
     for (auto block : imageBlocksWorker) {
         dcts.push_back(DCT(block, MACROBLOCK_SIZE, true));
     }
+    double dctEndTime = CycleTimer::currentSeconds();
 
     // blocks stay in their threads
     log(rank, "quantize()...\n");
+    double quantizeStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks;
     for (auto dct : dcts) {
         quantizedBlocks.push_back(quantize(dct, MACROBLOCK_SIZE, true));
     }
+    double quantizeEndTime = CycleTimer::currentSeconds();
 
     // blocks stay in their threads
     log(rank, "DPCM()...\n");
+    double dpcmStartTime = CycleTimer::currentSeconds();
     DPCM(quantizedBlocks);
+    double dpcmEndTime = CycleTimer::currentSeconds();
 
     // blocks stay in their threads
     log(rank, "RLE()...\n");
+    double encodedBlocksStartTime = CycleTimer::currentSeconds();
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
     for (auto quantizedBlock : quantizedBlocks) {
         encodedBlocks.push_back(RLE(quantizedBlock, MACROBLOCK_SIZE));
     }
+    double encodedBlocksEndTime = CycleTimer::currentSeconds();
 
     /*
      * BEGIN GATHER
      * Purpose: collect all blocks back into a vector of encoded blocks in master
      */
     log(rank, "GATHER\n");
-
+    double gatherEncodedBlocksStartTime = CycleTimer::currentSeconds();
     // For master thread, collect encoded blocks in order from workers
     int numEncodedBlocks;
     // encoded blocks for all threads
@@ -478,12 +503,14 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         MPI_Finalize();
         return;
     }
+    double gatherEncodedBlocksEndTime = CycleTimer::currentSeconds();
 
     /*
      * END GATHER
      * Purpose: collect all blocks back into a vector of encoded blocks in master
      */
 
+    double encodeCompressedStartTime = CycleTimer::currentSeconds();
     if (rank == 0) {
         fprintf(stdout, "done encoding!\n");
         fprintf(stdout, "writing to file...\n");
@@ -501,10 +528,12 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     // TODO: SCATTER
     // send blocks out to threads
     log(rank, "undoing RLE()...\n");
+    //double decodeRLEStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> decodedQuantizedBlocks;
     for (auto encodedBlock : finalEncodedBlocks) {
         decodedQuantizedBlocks.push_back(decodeRLE(encodedBlock, MACROBLOCK_SIZE));
     }
+    //double decodeRLEEndTime = CycleTimer::currentSeconds();
 
     // blocks stay in their threads
     log(rank, "undoing DPCM()...\n");
@@ -512,40 +541,52 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     // blocks stay in their threads
     log(rank, "undoing quantize()...\n");
+    //double unquantizeStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> unquantizedBlocks;
     for (auto decodedQuantizedBlock : decodedQuantizedBlocks) {
         unquantizedBlocks.push_back(unquantize(decodedQuantizedBlock, MACROBLOCK_SIZE, true));
     }
+    //double unquantizeEndTime = CycleTimer::currentSeconds();
 
     // blocks stay in their threads
     log(rank, "undoing DCT()...\n");
+    //double idctStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> idcts;
     for (auto unquantized : unquantizedBlocks) {
         idcts.push_back(IDCT(unquantized, MACROBLOCK_SIZE, true));
     }
+    //double idctEndTime = CycleTimer::currentSeconds();
 
     // TODO: GATHER
     // collect all blocks back into a vector of blocks in master
     log(rank, "undoing convertYcbcrToBlocks()...\n");
+    //double convertBlocksToYcbcrStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageBlocks> imageBlocksIdct(new ImageBlocks);
     imageBlocksIdct->blocks = idcts;
     imageBlocksIdct->width = width;
     imageBlocksIdct->height = height;
     std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(imageBlocksIdct, MACROBLOCK_SIZE);
+    //double convertBlocksToYcbcrEndTime = CycleTimer::currentSeconds();
 
     // TODO: SCATTER
     // give each thread an image with a section of the pixels to convert to rgb
     log(rank, "undoing convertRgbToYcbcr()...\n");
+    //double convertYcbcrToRgbStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageRgb> imageRgbRecovered = convertYcbcrToRgb(imgFromBlocks);
+    //double convertYcbcrToRgbEndTime = CycleTimer::currentSeconds();
 
     // each thread will continue and convert its image back to bytes
     log(rank, "undoing convertImageToBytes()...\n");
+    //double convertImageToBytesStartTime = CycleTimer::currentSeconds();
     std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgbRecovered);
+    //double convertImageToBytesEndTime = CycleTimer::currentSeconds();
 
     // TODO: GATHER
     // collect all bytes back into the full bytes vector for the image in master
     if (rank == 0) {
+        //double encodeImageStartTime = CycleTimer::currentSeconds();
         error = lodepng::encode(outfile, imgRecovered, width, height);
+        //double encodeImageEndTime = CycleTimer::currentSeconds();
 
         //if there's an error, display it
         if(error) {
@@ -565,10 +606,43 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     MPI_Type_free(&MPI_EncodedBlock);
     // end parallel area
     MPI_Finalize();
+
+    // Print statistics
+    if (rank == 0) {
+        fprintf(stdout,
+        "=======================================\n"
+        "= Parallel encoding performance: \n"
+        "=======================================\n"
+        "Load image: %.3fs\n"
+        "Setup MPI: %.3fs\n"
+        "Convert Image to Bytes: %.3fs\n"
+        "Convert RGB to YCbCr: %.3fs\n"
+        "Gather YCbCr Pixels: %.3fs\n"
+        "Convert YCbCr to Blocks: %.3fs\n"
+        "DCT: %.3fs\n"
+        "Quantize: %.3fs\n"
+        "DPCM: %.3fs\n"
+        "RLE: %.3fs\n"
+        "Gather Encoded Blocks: %.3fs\n"
+        "Encode Compressed Image: %.3fs\n"
+        "Total time: %.3fs\n",
+        loadImageEndTime - loadImageStartTime,
+        mpiSetupEndTime - mpiSetupStartTime,
+        convertBytesToImageEndTime - convertBytesToImageStartTime,
+        convertRgbToYcbcrEndTime - convertRgbToYcbcrStartTime,
+        gatherYcbcrPixelsEndTime - gatherYcbcrPixelsStartTime,
+        convertYcbcrToBlocksEndTime - convertYcbcrToBlocksStartTime,
+        dctEndTime - dctStartTime,
+        quantizeEndTime - quantizeStartTime,
+        dpcmEndTime - dpcmStartTime,
+        encodedBlocksEndTime - encodedBlocksStartTime,
+        gatherEncodedBlocksEndTime - gatherEncodedBlocksStartTime,
+        endTime - encodeCompressedStartTime,
+        endTime - startTime);
+    }
 }
 
 int main(int argc, char** argv) {
-    //TODO insert timing code
     int opt;
     int parallel = 0;
     while ((opt = getopt(argc, argv, ":p")) != -1) {
