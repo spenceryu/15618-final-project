@@ -238,21 +238,21 @@ std::shared_ptr<JpegEncoded> encodeOmp(const char* infile, const char* outfile, 
 
     fprintf(stdout, "DCT()...\n");
     double dctStartTime = CycleTimer::currentSeconds();
-    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
+    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts(imageBlocks->blocks.size());
     #pragma omp parallel for
     for (unsigned int i = 0; i < imageBlocks->blocks.size(); i++) {
-        std::vector<std::shared_ptr<PixelYcbcr>> block = imageBlocks->blocks[i];
-        dcts.push_back(DCT(block, MACROBLOCK_SIZE, true));
+        auto block = imageBlocks->blocks[i];
+        dcts[i] = DCT(block, MACROBLOCK_SIZE, true);
     }
     double dctEndTime = CycleTimer::currentSeconds();
 
     fprintf(stdout, "quantize()...\n");
     double quantizeStartTime = CycleTimer::currentSeconds();
-    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks;
+    std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks(dcts.size());
     #pragma omp parallel for
     for (unsigned int i = 0; i < dcts.size(); i++) {
-        std::vector<std::shared_ptr<PixelYcbcr>> dct = dcts[i];
-        quantizedBlocks.push_back(quantize(dct, MACROBLOCK_SIZE, true));
+        auto dct = dcts[i];
+        quantizedBlocks[i] = quantize(dct, MACROBLOCK_SIZE, true);
     }
     double quantizeEndTime = CycleTimer::currentSeconds();
 
@@ -263,11 +263,11 @@ std::shared_ptr<JpegEncoded> encodeOmp(const char* infile, const char* outfile, 
 
     fprintf(stdout, "RLE()...\n");
     double rleStartTime = CycleTimer::currentSeconds();
-    std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
+    std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks(quantizedBlocks.size());
     #pragma omp parallel for
     for (unsigned int i = 0; i < quantizedBlocks.size(); i++) {
-        std::vector<std::shared_ptr<PixelYcbcr>> quantizedBlock = quantizedBlocks[i];
-        encodedBlocks.push_back(RLE(quantizedBlock, MACROBLOCK_SIZE));
+        auto quantizedBlock = quantizedBlocks[i];
+        encodedBlocks[i] = RLE(quantizedBlock, MACROBLOCK_SIZE);
     }
     double rleEndTime = CycleTimer::currentSeconds();
 

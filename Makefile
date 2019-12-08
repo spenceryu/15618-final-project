@@ -1,50 +1,48 @@
 EXECUTABLE=compress-bin
 OMPEXEC=compress-bin-omp
 OBJDIR=objs
+OBJOMPDIR=objs-omp
 IMGDIR=images
 COMPDIR=compressed
 PNGDIR=lodepng
-CXXMPI=mpic++ -m64
-CXXOMP=$(CXX) -fopenmp -m64
-CXXFLAGSDEBUG=-ggdb -O0 -Wall -std=c++11
+CXX=mpic++ -m64
+CXXOMP=g++ -m64 -fopenmp
 CXXFLAGS=-O3 -Wall -std=c++11
 
-OBJSMPISEQ=$(OBJDIR)/main.o
-OBJSOMP=$(OBJDIR)/main2.o
-OBJS=$(OBJDIR)/$(PNGDIR)/lodepng.o $(OBJDIR)/dct.o $(OBJDIR)/image.o $(OBJDIR)/quantize.o $(OBJDIR)/rle.o $(OBJDIR)/dpcm.o
+OBJSMPISEQ=$(OBJDIR)/main.o $(OBJDIR)/$(PNGDIR)/lodepng.o $(OBJDIR)/dct.o $(OBJDIR)/image.o $(OBJDIR)/quantize.o $(OBJDIR)/rle.o $(OBJDIR)/dpcm.o
+OBJSOMP=$(OBJOMPDIR)/main2.o $(OBJOMPDIR)/$(PNGDIR)/lodepng.o $(OBJOMPDIR)/dct.o $(OBJOMPDIR)/image.o $(OBJOMPDIR)/quantize.o $(OBJOMPDIR)/rle.o $(OBJOMPDIR)/dpcm.o
 
 
 .PHONY: default dirs clean
 
-default: $(EXECUTABLE) $(OMPEXEC)
+default: dirs $(EXECUTABLE) $(OMPEXEC)
 
 dirs:
 		mkdir -p $(OBJDIR)
 		mkdir -p $(OBJDIR)/$(PNGDIR)
+		mkdir -p $(OBJOMPDIR)
+		mkdir -p $(OBJOMPDIR)/$(PNGDIR)
 		mkdir -p $(IMGDIR)
 		mkdir -p $(COMPDIR)
 
 clean:
-		rm -rf $(OBJSMPISEQ) $(OBJSOMP) $(OBJDIR) $(IMGDIR) $(COMPDIR) *~ $(EXECUTABLE) $(OMPEXEC) $(LOGS)
+		rm -rf $(OBJDIR) $(OBJOMPDIR) $(IMGDIR) $(COMPDIR) *~ $(EXECUTABLE) $(OMPEXEC) $(LOGS)
 
-$(EXECUTABLE): dirs $(OBJSMPISEQ) $(OBJS)
-		# $(CXX) $(CXXFLAGSDEBUG) -o $@ $(OBJS) $(LDFLAGS)
-		$(CXXMPI) $(CXXFLAGS) -o $@ $(OBJSMPISEQ) $(OBJS) $(LDFLAGS)
+$(EXECUTABLE): $(OBJSMPISEQ)
+		$(CXX) $(CXXFLAGS) -o $@ $(OBJSMPISEQ) $(OBJS) $(LDFLAGS)
 
-$(OMPEXEC): dirs $(OBJSOMP) $(OBJS)
+$(OMPEXEC): $(OBJSOMP)
 		$(CXXOMP) $(CXXFLAGS) -o $@ $(OBJSOMP) $(OBJS) $(LDFLAGS)
 
-$(OBJSMPISEQ): src/main.cpp
-		$(CXXMPI) $< $(CXXFLAGS) -c -o $@
-
-$(OBJSOMP): src/main2.cpp
-		$(CXXOMP) $< $(CXXFLAGS) -c -o $@
-
 $(OBJDIR)/%.o: src/%.cpp
-		# $(CXX) $< $(CXXFLAGSDEBUG) -c -o $@
-		$(CXXMPI) $< $(CXXFLAGS) -c -o $@
+		$(CXX) $< $(CXXFLAGS) -c -o $@
 
 $(OBJDIR)/$(PNGDIR)/%.o: src/$(PNGDIR)/%.cpp
-		# $(CXX) $< $(CXXFLAGSDEBUG) -c -o $@
-		$(CXXMPI) $< $(CXXFLAGS) -c -o $@
+		$(CXX) $< $(CXXFLAGS) -c -o $@
+
+$(OBJOMPDIR)/%.o: src/%.cpp
+		$(CXXOMP) $< $(CXXFLAGS) -c -o $@
+
+$(OBJOMPDIR)/$(PNGDIR)/%.o: src/$(PNGDIR)/%.cpp
+		$(CXXOMP) $< $(CXXFLAGS) -c -o $@
 
