@@ -239,7 +239,9 @@ std::shared_ptr<JpegEncoded> encodeOmp(const char* infile, const char* outfile, 
     fprintf(stdout, "DCT()...\n");
     double dctStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
-    for (auto block : imageBlocks->blocks) {
+    #pragma omp parallel for
+    for (unsigned int i = 0; i < imageBlocks->blocks.size(); i++) {
+        std::vector<std::shared_ptr<PixelYcbcr>> block = imageBlocks->blocks[i];
         dcts.push_back(DCT(block, MACROBLOCK_SIZE, true));
     }
     double dctEndTime = CycleTimer::currentSeconds();
@@ -247,7 +249,9 @@ std::shared_ptr<JpegEncoded> encodeOmp(const char* infile, const char* outfile, 
     fprintf(stdout, "quantize()...\n");
     double quantizeStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks;
-    for (auto dct : dcts) {
+    #pragma omp parallel for
+    for (unsigned int i = 0; i < dcts.size(); i++) {
+        std::vector<std::shared_ptr<PixelYcbcr>> dct = dcts[i];
         quantizedBlocks.push_back(quantize(dct, MACROBLOCK_SIZE, true));
     }
     double quantizeEndTime = CycleTimer::currentSeconds();
