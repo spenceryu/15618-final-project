@@ -13,13 +13,19 @@
 
 #define MACROBLOCK_SIZE 8
 
+#ifndef LOGLEVEL
+#define LOGLEVEL 0 // set to 1 for log output
+#endif
+
 void log(int rank, const char* format, ...) {
     if (rank != 0) {
         return;
     }
     va_list args;
     va_start(args, format);
-    fprintf(stdout, format, args);
+    if (LOGLEVEL) {
+        fprintf(stdout, format, args);
+    }
     va_end(args);
 }
 
@@ -28,40 +34,40 @@ std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* outfile, co
 
     double startTime = CycleTimer::currentSeconds();
 
-    std::vector<unsigned char> bytes; //the raw pixels
+    std::vector<unsigned char> bytes; // The raw pixels
     unsigned int width, height;
 
-    //decode
+    // Decode
     double loadImageStartTime = CycleTimer::currentSeconds();
     unsigned int error = lodepng::decode(bytes, width, height, infile);
     double loadImageStopTime = CycleTimer::currentSeconds();
 
-    //if there's an error, display it
+    // If there's an error, display it
     if(error) {
       std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
     } else {
-      fprintf(stdout, "success decoding %s!\n", infile);
+      log(0, "success decoding %s!\n", infile);
     }
 
-    //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
-    fprintf(stdout, "convertBytesToImage()...\n");
+    // 4 bytes per pixel, ordered RGBARGBA
+    log(0, "convertBytesToImage()...\n");
     double convertBytesToImageStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
     double convertBytesToImageEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "convertRgbToYcbcr()...\n");
+    log(0, "convertRgbToYcbcr()...\n");
     double convertRgbToYcbcrStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageYcbcr> imageYcbcr = convertRgbToYcbcr(imageRgb);
     double convertRgbToYcbcrEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "convertYcbcrToBlocks()...\n");
+    log(0, "convertYcbcrToBlocks()...\n");
     double convertYcbcrToBlocksStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
     width = imageBlocks->width;
     height = imageBlocks->height;
     double convertYcbcrToBlocksEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "DCT()...\n");
+    log(0, "DCT()...\n");
     double dctStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts;
     for (auto block : imageBlocks->blocks) {
@@ -69,7 +75,7 @@ std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* outfile, co
     }
     double dctEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "quantize()...\n");
+    log(0, "quantize()...\n");
     double quantizeStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks;
     for (auto dct : dcts) {
@@ -77,12 +83,12 @@ std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* outfile, co
     }
     double quantizeEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "DPCM()...\n");
+    log(0, "DPCM()...\n");
     double dpcmStartTime = CycleTimer::currentSeconds();
     DPCM(quantizedBlocks);
     double dpcmEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "RLE()...\n");
+    log(0, "RLE()...\n");
     double rleStartTime = CycleTimer::currentSeconds();
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks;
     for (auto quantizedBlock : quantizedBlocks) {
@@ -141,46 +147,45 @@ std::vector<unsigned char> jpegDecodeSeq(std::shared_ptr<JpegEncoded> jpegEncode
     unsigned int height = jpegEncoded->height;
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks = jpegEncoded->encodedBlocks;
 
-    fprintf(stdout, "==============\n");
+    log(0, "==============\n");
     fprintf(stdout, "now let's undo the process...\n");
 
-    fprintf(stdout, "undoing RLE()...\n");
+    log(0, "undoing RLE()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> decodedQuantizedBlocks;
     for (auto encodedBlock : encodedBlocks) {
         decodedQuantizedBlocks.push_back(decodeRLE(encodedBlock, MACROBLOCK_SIZE));
     }
 
-    fprintf(stdout, "undoing DPCM()...\n");
+    log(0, "undoing DPCM()...\n");
     unDPCM(decodedQuantizedBlocks);
 
-    fprintf(stdout, "undoing quantize()...\n");
+    log(0, "undoing quantize()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> unquantizedBlocks;
     for (auto decodedQuantizedBlock : decodedQuantizedBlocks) {
         unquantizedBlocks.push_back(unquantize(decodedQuantizedBlock, MACROBLOCK_SIZE, true));
     }
 
-    fprintf(stdout, "undoing DCT()...\n");
+    log(0, "undoing DCT()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> idcts;
     for (auto unquantized : unquantizedBlocks) {
         idcts.push_back(IDCT(unquantized, MACROBLOCK_SIZE, true));
     }
 
-    fprintf(stdout, "undoing convertYcbcrToBlocks()...\n");
+    log(0, "undoing convertYcbcrToBlocks()...\n");
     std::shared_ptr<ImageBlocks> imageBlocksIdct(new ImageBlocks);
     imageBlocksIdct->blocks = idcts;
     imageBlocksIdct->width = width;
     imageBlocksIdct->height = height;
     std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(imageBlocksIdct, MACROBLOCK_SIZE);
 
-    fprintf(stdout, "undoing convertRgbToYcbcr()...\n");
+    log(0, "undoing convertRgbToYcbcr()...\n");
     std::shared_ptr<ImageRgb> imageRgbRecovered = convertYcbcrToRgb(imgFromBlocks);
 
-    fprintf(stdout, "undoing convertBytesToImage()...\n");
+    log(0, "undoing convertBytesToImage()...\n");
     std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgbRecovered);
 
     unsigned int error = lodepng::encode(outfile, imgRecovered, width, height);
 
-    //if there's an error, display it
     if(error) {
         std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
     } else {
@@ -204,40 +209,37 @@ std::shared_ptr<JpegEncoded> jpegPar(const char* infile, const char* outfile, co
 
     double startTime = CycleTimer::currentSeconds();
 
-    std::vector<unsigned char> bytes; //the raw pixels
+    std::vector<unsigned char> bytes;
     unsigned int width, height;
 
-    //decode
     double loadImageStartTime = CycleTimer::currentSeconds();
     unsigned int error = lodepng::decode(bytes, width, height, infile);
     double loadImageStopTime = CycleTimer::currentSeconds();
 
-    //if there's an error, display it
     if(error) {
       std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
     } else {
-      fprintf(stdout, "success decoding %s!\n", infile);
+      log(0, "success decoding %s!\n", infile);
     }
 
-    //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
-    fprintf(stdout, "convertBytesToImage()...\n");
+    log(0, "convertBytesToImage()...\n");
     double convertBytesToImageStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
     double convertBytesToImageEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "convertRgbToYcbcr()...\n");
+    log(0, "convertRgbToYcbcr()...\n");
     double convertRgbToYcbcrStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageYcbcr> imageYcbcr = convertRgbToYcbcr(imageRgb);
     double convertRgbToYcbcrEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "convertYcbcrToBlocks()...\n");
+    log(0, "convertYcbcrToBlocks()...\n");
     double convertYcbcrToBlocksStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
     width = imageBlocks->width;
     height = imageBlocks->height;
     double convertYcbcrToBlocksEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "DCT()...\n");
+    log(0, "DCT()...\n");
     double dctStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> dcts(imageBlocks->blocks.size());
     #pragma omp parallel for
@@ -247,7 +249,7 @@ std::shared_ptr<JpegEncoded> jpegPar(const char* infile, const char* outfile, co
     }
     double dctEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "quantize()...\n");
+    log(0, "quantize()...\n");
     double quantizeStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> quantizedBlocks(dcts.size());
     #pragma omp parallel for
@@ -257,12 +259,12 @@ std::shared_ptr<JpegEncoded> jpegPar(const char* infile, const char* outfile, co
     }
     double quantizeEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "DPCM()...\n");
+    log(0, "DPCM()...\n");
     double dpcmStartTime = CycleTimer::currentSeconds();
     DPCM(quantizedBlocks);
     double dpcmEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "RLE()...\n");
+    log(0, "RLE()...\n");
     double rleStartTime = CycleTimer::currentSeconds();
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks(quantizedBlocks.size());
     #pragma omp parallel for
