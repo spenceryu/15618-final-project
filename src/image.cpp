@@ -136,13 +136,14 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
         for (int j = 0; j < blocks_width; j++) {
             auto block = input->blocks[sub2ind(blocks_width, j, i)];
             for (unsigned int k = 0; k < block.size(); k++) {
-                std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
                 Coord block_coord = ind2sub(block_size, k);
-                int row = block_coord.row;
-                pixel->y = block[k]->y;
-                pixel->cb = block[k]->cb;
-                pixel->cr = block[k]->cr;
-                pixel_rows[row].push_back(pixel);
+                if (pixel_in_bounds(i * block_size + block_coord.row, j * block_size + block_coord.col, input->width, input->height)) {
+                    std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
+                    pixel->y = block[k]->y;
+                    pixel->cb = block[k]->cb;
+                    pixel->cr = block[k]->cr;
+                    pixel_rows[block_coord.row].push_back(pixel);
+                }
             }
         }
         // add all pixel_rows to image
