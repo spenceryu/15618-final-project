@@ -44,5 +44,5 @@ images/*
 compressed/*
 
 # executables
-compress-bin
-compress-bin-omp
+seq-mpi-bin
+omp-bin

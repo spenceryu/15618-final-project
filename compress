@@ -1,26 +1,35 @@
 #!/bin/bash
 # run sequential compress of parallel compress with given number of mpi tasks
 
-if [[ ! -f "compress-bin" ]]
-then
-    echo "compress-bin not found, run make"
-    exit
-fi
-if [[ "$#" -eq 0 ]] || [[ "$1" = "help" ]]
-then
-    echo "Usage: compress [s|p|o] [n]"
+function print_usage {
+    echo "Usage: compress [seq|mpi|omp] [n]"
     echo ""
-    echo "s: run sequential implementation"
-    echo "p: run parallel implementation with the given number of mpi tasks"
-    echo "n: number of mpi tasks to use for parallel implementation"
-    echo "o: run omp implementation"
-elif [[ "$1" = "s" ]]
+    echo "seq: run sequential implementation"
+    echo "mpi: run parallel implementation with the given number of mpi tasks"
+    echo "omp: run omp implementation"
+    echo "n:   number of mpi tasks to use, omit for max possible tasks"
+}
+
+function check_executable {
+    if [[ ! -f "$1" ]]
+    then
+        echo "executable $1 not found, running make"
+        make
+    fi
+}
+
+if [[ "$1" = "seq" ]]
 then
-    ./compress-bin
-elif [[ "$1" = "o" ]]
+    check_executable "seq-mpi-bin"
+    ./seq-mpi-bin
+elif [[ "$1" = "mpi" ]]
 then
-    ./compress-bin-omp -o
-elif [[ "$1" = "p" ]]
+    check_executable "seq-mpi-bin"
+    mpirun -np "$2" ./seq-mpi-bin -p
+elif [[ "$1" = "omp" ]]
 then
-    mpirun -np "$2" ./compress-bin -p
+    check_executable "omp-bin"
+    ./omp-bin -o
+else
+    print_usage
 fi

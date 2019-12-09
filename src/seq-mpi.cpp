@@ -10,7 +10,6 @@
 #include "dpcm.h"
 #include "rle.h"
 #include "mpi.h"
-#include <omp.h>
 
 #define MACROBLOCK_SIZE 8
 
@@ -24,7 +23,7 @@ void log(int rank, const char* format, ...) {
     va_end(args);
 }
 
-std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* outfile, const char* compressedFile) {
+std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* compressedFile) {
     fprintf(stdout, "running sequential version\n");
 
     double startTime = CycleTimer::currentSeconds();
@@ -193,7 +192,7 @@ std::vector<unsigned char> jpegDecodeSeq(std::shared_ptr<JpegEncoded> jpegEncode
 
 void encodeSeq(const char* infile, const char* outfile, const char* compressedFile) {
 
-    std::shared_ptr<JpegEncoded> jpegEncoded = jpegSeq(infile, outfile, compressedFile);
+    std::shared_ptr<JpegEncoded> jpegEncoded = jpegSeq(infile, compressedFile);
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks = jpegEncoded->encodedBlocks;
     std::vector<unsigned char> imgRecovered = jpegDecodeSeq(jpegEncoded, outfile);
 

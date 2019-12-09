@@ -198,7 +198,8 @@ void encodeSeq(const char* infile, const char* outfile, const char* compressedFi
 
 }
 
-std::shared_ptr<JpegEncoded> encodeOmp(const char* infile, const char* outfile, const char* compressedFile) {
+std::shared_ptr<JpegEncoded> jpegPar(const char* infile, const char* outfile, const char* compressedFile) {
+
     fprintf(stdout, "running OMP version\n");
 
     double startTime = CycleTimer::currentSeconds();
@@ -314,6 +315,12 @@ std::shared_ptr<JpegEncoded> encodeOmp(const char* infile, const char* outfile, 
     endTime - startTime);
 
     return result;
+}
+
+void encodeOmp(const char* infile, const char* outfile, const char* compressedFile) {
+    std::shared_ptr<JpegEncoded> jpegEncoded = jpegPar(infile, outfile, compressedFile);
+    std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks = jpegEncoded->encodedBlocks;
+    std::vector<unsigned char> imgRecovered = jpegDecodeSeq(jpegEncoded, outfile);
 }
 
 int main(int argc, char** argv) {
