@@ -1,6 +1,7 @@
 #include <iostream>
 #include <fstream>
 #include <cstdarg>
+#include <string>
 #include "CycleTimer.h"
 #include "getopt.h"
 #include "stdio.h"
@@ -199,7 +200,7 @@ void encodeSeq(const char* infile, const char* outfile, const char* compressedFi
 
 }
 
-void encodePar(const char* infile, const char* outfile, const char* compressedFile) {
+void encodeMpi(const char* infile, const char* outfile, const char* compressedFile) {
 
     // Start parallel area
     MPI_Status mpiStatus;
@@ -665,6 +666,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 }
 
 int main(int argc, char** argv) {
+    std::string filename = argv[1];
     int opt;
     int mpi = 0;
     while ((opt = getopt(argc, argv, ":p")) != -1) {
@@ -673,15 +675,19 @@ int main(int argc, char** argv) {
                 mpi = 1;
                 break;
             default:
-                fprintf(stderr, "Usage: %s [p]\n", argv[0]);
+                fprintf(stderr, "Usage: %s [image] [-p]\n", argv[0]);
                 exit(EXIT_FAILURE);
         }
     }
 
+    std::string raw_image = std::string("raw_images/") + filename + std::string(".png");
+    std::string image = std::string("images/") + filename + std::string(".png");
+    std::string compressed = std::string("compressed/") + filename + std::string(".jpeg");
+
     if (mpi) {
-        encodePar("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg");
+        encodeMpi(raw_image.c_str(), image.c_str(), compressed.c_str());
     } else {
-        encodeSeq("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg");
+        encodeSeq(raw_image.c_str(), image.c_str(), compressed.c_str());
     }
 
     exit(EXIT_SUCCESS);
