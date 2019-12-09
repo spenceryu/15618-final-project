@@ -8,16 +8,17 @@ std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, 
         end = bytes.size();
     }
     std::shared_ptr<ImageRgb> image(new ImageRgb());
-    std::vector<std::shared_ptr<PixelRgba>> pixels;
+    std::vector<std::shared_ptr<PixelRgba>> pixels(bytes.size() / 4);
     image->width = width;
     image->height = height;
+    #pragma omp parallel for
     for (int i = start; i < end; i += 4) {
         std::shared_ptr<PixelRgba> pixel(new PixelRgba());
         pixel->r = bytes[i];
         pixel->g = bytes[i + 1];
         pixel->b = bytes[i + 2];
         pixel->a = bytes[i + 3];
-        pixels.push_back(pixel);
+        pixels[i / 4] = pixel;
     }
     image->pixels = pixels;
     image->numPixels = pixels.size();
@@ -41,13 +42,15 @@ std::shared_ptr<ImageYcbcr> convertRgbToYcbcr(std::shared_ptr<ImageRgb> input) {
     result->numPixels = input->numPixels;
     result->width = input->width;
     result->height = input->height;
-    std::vector<std::shared_ptr<PixelYcbcr>> new_pixels;
-    for (auto pixel : input->pixels) {
+    std::vector<std::shared_ptr<PixelYcbcr>> new_pixels(input->pixels.size());
+    #pragma omp parallel for
+    for (unsigned int i = 0; i < input->pixels.size(); i++) {
+        auto pixel = input->pixels[i];
         std::shared_ptr<PixelYcbcr> new_pixel(new PixelYcbcr());
         new_pixel->y = 16 + (65.738 * pixel->r + 129.057 * pixel->g + 25.064 * pixel->b) / 256;
         new_pixel->cb = 128 - (37.945 * pixel->r + 74.494 * pixel->g - 112.439 * pixel->b) / 256;
         new_pixel->cr = 128 + (112.439 * pixel->r - 94.154 * pixel->g - 18.285 * pixel->b) / 256;
-        new_pixels.push_back(new_pixel);
+        new_pixels[i] = new_pixel;
     }
     result->pixels = new_pixels;
     return result;
@@ -83,11 +86,12 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
     for (int i = 0; i < blocks_height; i++) {
         int start_index = i * block_size * block_size * blocks_width;
         // blocks in next row of image
-        std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> block_row(blocks_width);
+        std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> block_row(blocks_width, std::vector<std::shared_ptr<PixelYcbcr>>(block_size * block_size));
         // rows of pixels in the row of blocks
         for (int j = 0; j < block_size; j++) {
             int row_index = start_index + j * block_size * blocks_width;
             // pixels in the row of pixels
+            #pragma omp parallel for
             for (int k = 0; k < block_size * blocks_width; k++) {
                 int pixel_index = row_index + k - offset;
                 std::shared_ptr<PixelYcbcr> pixel(new PixelYcbcr());
@@ -101,7 +105,7 @@ std::shared_ptr<ImageBlocks> convertYcbcrToBlocks(std::shared_ptr<ImageYcbcr> in
                     pixel->cr = 0;
                     offset++;
                 }
-                block_row[k / block_size].push_back(pixel);
+                block_row[k / block_size][sub2ind(block_size, k % block_size, j)] = pixel;
             }
         }
         blocks.insert(blocks.end(), block_row.begin(), block_row.end());

@@ -209,7 +209,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     double endTime = CycleTimer::currentSeconds();
 
-    log(rank, "running parallel version\n");
+    log(rank, "running MPI version\n");
     double startTime = CycleTimer::currentSeconds();
     std::vector<unsigned char> bytes; //the raw pixels
     unsigned int width, height;
@@ -705,9 +705,9 @@ int main(int argc, char** argv) {
     }
 
     if (mpi) {
-        encodePar("raw_images/cookie2.png", "images/cookie2.png", "compressed/cookie2.jpeg");
+        encodePar("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg");
     } else {
-        encodeSeq("raw_images/cookie2.png", "images/cookie2.png", "compressed/cookie2.jpeg");
+        encodeSeq("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg");
     }
 
     exit(EXIT_SUCCESS);

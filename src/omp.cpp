@@ -338,9 +338,9 @@ int main(int argc, char** argv) {
     }
 
     if (omp) {
-        encodeOmp("raw_images/cookie2.png", "images/cookie2.png", "compressed/cookie2.jpeg");
+        encodeOmp("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg");
     } else {
-        encodeSeq("raw_images/cookie2.png", "images/cookie2.png", "compressed/cookie2.jpeg");
+        encodeSeq("raw_images/cookie.png", "images/cookie.png", "compressed/cookie.jpeg");
     }
 
     exit(EXIT_SUCCESS);
