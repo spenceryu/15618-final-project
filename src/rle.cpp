@@ -13,23 +13,6 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     encodeValues(block, result_y, COLOR_Y);
     result->y = result_y;
 
-    /*
-    // Print statement: verify buildTable() is actually writing (fixed now...)
-    std::shared_ptr<std::map<char, double>> tb = result_y->decode_table;
-    std::map<char, double> tb_val = *(tb.get());
-    for (std::map<char, double>::iterator iter = tb_val.begin();
-        iter != tb_val.end(); ++iter) {
-        fprintf(stdout, "Encoding: %d (encoded) %f (raw)\n", iter->first, iter->second);
-    }
-    */
-
-    // Print statement: verify RleTuples are being encoded (Fixed now...)
-    /*
-    for (RleTuple a: (*(result_y->encoded).get())) {
-        fprintf(stdout, "RleTuple: encoded %d count %d\n", a.encoded, a.count);
-    }
-    */
-
     std::shared_ptr<EncodedBlockColor> result_cr = buildTable(block, COLOR_CR, block_size);
     encodeValues(block, result_cr, COLOR_CR);
     result->cr = result_cr;
