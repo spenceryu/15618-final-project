@@ -61,8 +61,6 @@ std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* compressedF
     log(0, "convertYcbcrToBlocks()...\n");
     double convertYcbcrToBlocksStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
-    width = imageBlocks->width;
-    height = imageBlocks->height;
     double convertYcbcrToBlocksEndTime = CycleTimer::currentSeconds();
 
     log(0, "DCT()...\n");
@@ -395,8 +393,6 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         log(rank, "convertYcbcrToBlocks()...\n");
 
         std::shared_ptr<ImageBlocks> imageBlocks = convertYcbcrToBlocks(imageYcbcr, MACROBLOCK_SIZE);
-        width = imageBlocks->width;
-        height = imageBlocks->height;
 
         /*
          * BEGIN SCATTER
