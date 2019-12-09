@@ -41,9 +41,7 @@ std::shared_ptr<EncodedBlock> RLE(std::vector<std::shared_ptr<PixelYcbcr>> block
     return result;
 }
 
-std::vector<std::shared_ptr<PixelYcbcr>> decodeRLE(
-    std::shared_ptr<EncodedBlock> encoded,
-    int block_size) {
+std::vector<std::shared_ptr<PixelYcbcr>> decodeRLE( std::shared_ptr<EncodedBlock> encoded, int block_size) {
 
     std::vector<std::shared_ptr<PixelYcbcr>> result(block_size * block_size);
     for (unsigned int i = 0; i < result.size(); i++) {
@@ -121,8 +119,9 @@ std::vector<std::shared_ptr<PixelYcbcr>> decodeRLE(
 
 // Extract the relevant color channel from the macroblock
 std::vector<double> extractChannel(std::vector<std::shared_ptr<PixelYcbcr>> block, int chan) {
-    std::vector<double> block_vals;
+    std::vector<double> block_vals(block.size());
 
+    #pragma omp parallel for
     for (unsigned int i = 0; i < block.size(); i++) {
         double val;
         if (chan == COLOR_Y) {
@@ -136,7 +135,7 @@ std::vector<double> extractChannel(std::vector<std::shared_ptr<PixelYcbcr>> bloc
         if (val == -0.0) {
             val = 0.0;
         }
-        block_vals.push_back(val);
+        block_vals[i] = val;
     }
 
     return block_vals;
@@ -147,10 +146,7 @@ std::vector<double> extractChannel(std::vector<std::shared_ptr<PixelYcbcr>> bloc
 // Returns updated values into:
 // freqs (map: double => char) and
 // encodingTable (map: char => double)
-std::shared_ptr<EncodedBlockColor> buildTable(
-    std::vector<std::shared_ptr<PixelYcbcr>> block,
-    int chan,
-    int block_size) {
+std::shared_ptr<EncodedBlockColor> buildTable( std::vector<std::shared_ptr<PixelYcbcr>> block, int chan, int block_size) {
 
     std::shared_ptr<EncodedBlockColor> result = std::make_shared<EncodedBlockColor>();
     result->encoded = std::make_shared<std::vector<RleTuple>>();
@@ -162,6 +158,7 @@ std::shared_ptr<EncodedBlockColor> buildTable(
     // Count (value => number of occurrences)
     // i = 0 is a DC value, so skip that.
     std::map<double, char> freq;
+    #pragma omp parallel for
     for (unsigned int i = 1; i < block_vals.size(); i++) {
         if (freq.count(block_vals[i])) {
             freq[block_vals[i]] += 1;

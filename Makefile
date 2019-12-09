@@ -7,7 +7,7 @@ COMPDIR=compressed
 PNGDIR=lodepng
 SEQ_MPI_CXX=mpic++ -m64
 OMP_CXX=g++ -m64 -fopenmp
-CXXFLAGS=-O3 -Wall -std=c++11
+CXXFLAGS=-O3 -std=c++11
 
 SEQ_MPI_OBJS=$(SEQ_MPI_OBJDIR)/seq-mpi.o $(SEQ_MPI_OBJDIR)/$(PNGDIR)/lodepng.o $(SEQ_MPI_OBJDIR)/dct.o $(SEQ_MPI_OBJDIR)/image.o $(SEQ_MPI_OBJDIR)/quantize.o $(SEQ_MPI_OBJDIR)/rle.o $(SEQ_MPI_OBJDIR)/dpcm.o
 OMP_OBJS=$(OMP_OBJDIR)/omp.o $(OMP_OBJDIR)/$(PNGDIR)/lodepng.o $(OMP_OBJDIR)/dct.o $(OMP_OBJDIR)/image.o $(OMP_OBJDIR)/quantize.o $(OMP_OBJDIR)/rle.o $(OMP_OBJDIR)/dpcm.o

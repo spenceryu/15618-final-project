@@ -155,19 +155,21 @@ std::shared_ptr<ImageYcbcr> convertBlocksToYcbcr(std::shared_ptr<ImageBlocks> in
 }
 
 void downsampleCbcr(std::shared_ptr<ImageBlocks> image, int block_size) {
-    for (auto block : image->blocks) {
-        for (unsigned int i = 0; i < block.size(); i++) {
-            Coord coord = ind2sub(block_size, i);
+    #pragma omp parallel for
+    for (unsigned int i = 0; i < image->blocks.size(); i++) {
+        auto block = image->blocks[i];
+        for (unsigned int j = 0; j < block.size(); j++) {
+            Coord coord = ind2sub(block_size, j);
             if ((coord.row < block_size / 2) && (coord.col < block_size / 2)) {
                 Coord sample_coord;
                 sample_coord.col = coord.col * 2;
                 sample_coord.row = coord.row * 2;
                 int sample_index = sub2ind(block_size, sample_coord);
-                block[i]->cb = block[sample_index]->cb;
-                block[i]->cr = block[sample_index]->cr;
+                block[j]->cb = block[sample_index]->cb;
+                block[j]->cr = block[sample_index]->cr;
             } else {
-                block[i]->cb = 0;
-                block[i]->cr = 0;
+                block[j]->cb = 0;
+                block[j]->cr = 0;
             }
         }
     }
