@@ -96,15 +96,15 @@ std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* outfile, co
     }
     double rleEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "done encoding!\n");
-    fprintf(stdout, "writing to file...\n");
+    log(0, "done encoding!\n");
+    log(0, "writing to file...\n");
     double writeCompressedImageStartTime = CycleTimer::currentSeconds();
     std::ofstream jpegFile(compressedFile);
     for (const auto &block : encodedBlocks) {
         jpegFile << block;
     }
     double writeCompressedImageEndTime = CycleTimer::currentSeconds();
-    fprintf(stdout, "jpeg stored!\n");
+    log(0, "jpeg stored!\n");
 
     std::shared_ptr<JpegEncoded> result = std::make_shared<JpegEncoded>();
     result->encodedBlocks = encodedBlocks;
@@ -148,7 +148,7 @@ std::vector<unsigned char> jpegDecodeSeq(std::shared_ptr<JpegEncoded> jpegEncode
     std::vector<std::shared_ptr<EncodedBlock>> encodedBlocks = jpegEncoded->encodedBlocks;
 
     log(0, "==============\n");
-    fprintf(stdout, "now let's undo the process...\n");
+    log(0, "now let's undo the process...\n");
 
     log(0, "undoing RLE()...\n");
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> decodedQuantizedBlocks;
@@ -274,15 +274,15 @@ std::shared_ptr<JpegEncoded> jpegPar(const char* infile, const char* outfile, co
     }
     double rleEndTime = CycleTimer::currentSeconds();
 
-    fprintf(stdout, "done encoding!\n");
-    fprintf(stdout, "writing to file...\n");
+    log(0, "done encoding!\n");
+    log(0, "writing to file...\n");
     double writeCompressedImageStartTime = CycleTimer::currentSeconds();
     std::ofstream jpegFile(compressedFile);
     for (const auto &block : encodedBlocks) {
         jpegFile << block;
     }
     double writeCompressedImageEndTime = CycleTimer::currentSeconds();
-    fprintf(stdout, "jpeg stored!\n");
+    log(0, "jpeg stored!\n");
 
     std::shared_ptr<JpegEncoded> result = std::make_shared<JpegEncoded>();
     result->encodedBlocks = encodedBlocks;
