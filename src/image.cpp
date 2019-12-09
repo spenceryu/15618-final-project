@@ -8,7 +8,8 @@ std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, 
         end = bytes.size();
     }
     std::shared_ptr<ImageRgb> image(new ImageRgb());
-    std::vector<std::shared_ptr<PixelRgba>> pixels(bytes.size() / 4);
+    image->numPixels = (end - start + 1) / 4;
+    std::vector<std::shared_ptr<PixelRgba>> pixels(image->numPixels);
     image->width = width;
     image->height = height;
     #pragma omp parallel for
@@ -18,10 +19,9 @@ std::shared_ptr<ImageRgb> convertBytesToImage(std::vector<unsigned char> bytes, 
         pixel->g = bytes[i + 1];
         pixel->b = bytes[i + 2];
         pixel->a = bytes[i + 3];
-        pixels[i / 4] = pixel;
+        pixels[(i - start) / 4] = pixel;
     }
     image->pixels = pixels;
-    image->numPixels = pixels.size();
     return image;
 }
 
