@@ -34,22 +34,20 @@ std::shared_ptr<JpegEncoded> jpegSeq(const char* infile, const char* compressedF
 
     double startTime = CycleTimer::currentSeconds();
 
-    std::vector<unsigned char> bytes; //the raw pixels
+    std::vector<unsigned char> bytes; // The raw pixels
     unsigned int width, height;
 
-    //decode
     double loadImageStartTime = CycleTimer::currentSeconds();
     unsigned int error = lodepng::decode(bytes, width, height, infile);
     double loadImageStopTime = CycleTimer::currentSeconds();
 
-    //if there's an error, display it
     if(error) {
       std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
     } else {
       log(0, "success decoding %s!\n", infile);
     }
 
-    //the pixels are now in the vector "image", 4 bytes per pixel, ordered RGBARGBA..., use it as texture, draw it, ...
+    // 4 bytes per pixel, ordered RGBARGBA
     log(0, "convertBytesToImage()...\n");
     double convertBytesToImageStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageRgb> imageRgb = convertBytesToImage(bytes, width, height);
@@ -186,7 +184,6 @@ std::vector<unsigned char> jpegDecodeSeq(std::shared_ptr<JpegEncoded> jpegEncode
 
     unsigned int error = lodepng::encode(outfile, imgRecovered, width, height);
 
-    //if there's an error, display it
     if(error) {
         std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
     } else {
@@ -205,10 +202,10 @@ void encodeSeq(const char* infile, const char* outfile, const char* compressedFi
 }
 
 void encodePar(const char* infile, const char* outfile, const char* compressedFile) {
-    // start parallel area
+
+    // Start parallel area
     MPI_Status mpiStatus;
     int numTasks, rank;
-    /* MPI_Init(&argc, &argv); */
     MPI_Init(NULL, NULL);
     MPI_Comm_size(MPI_COMM_WORLD, &numTasks);
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
@@ -217,15 +214,13 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
 
     log(rank, "running MPI version\n");
     double startTime = CycleTimer::currentSeconds();
-    std::vector<unsigned char> bytes; //the raw pixels
+    std::vector<unsigned char> bytes; // The raw pixels
     unsigned int width, height;
 
-    //decode
     double loadImageStartTime = CycleTimer::currentSeconds();
     unsigned int error = lodepng::decode(bytes, width, height, infile);
     double loadImageEndTime = CycleTimer::currentSeconds();
 
-    //if there's an error, display it
     if(error) {
         std::cout << "decoder error " << error << ": " << lodepng_error_text(error) << std::endl;
     } else {
@@ -322,10 +317,12 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     // End setup for MPI Structs
 
     int tag = 1;
+
     /*
      * BEGIN SCATTER
      * Purpose: give each thread a section of bytes to convert to an image
      */
+
     log(rank, "SCATTER\n");
     log(rank, "convertBytesToImage()...\n");
     double convertBytesToImageStartTime = CycleTimer::currentSeconds();
@@ -386,6 +383,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         MPI_Send(buffer.get(), imageYcbcr->numPixels, MPI_PixelYcbcr, 0, tag, MPI_COMM_WORLD);
     }
     double gatherYcbcrPixelsEndTime = CycleTimer::currentSeconds();
+
     /*
      * END GATHER
      */
@@ -461,6 +459,7 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         imageBlocksWorker = blocks;
     }
     double convertYcbcrToBlocksEndTime = CycleTimer::currentSeconds();
+
     /*
      * END SCATTER
      * Purpose: send blocks out to threads
@@ -579,70 +578,42 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
         log(0, "now let's undo the process...\n");
     }
 
-    // TODO: SCATTER
-    // send blocks out to threads
     log(rank, "undoing RLE()...\n");
-    //double decodeRLEStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> decodedQuantizedBlocks;
     for (auto encodedBlock : finalEncodedBlocks) {
         decodedQuantizedBlocks.push_back(decodeRLE(encodedBlock, MACROBLOCK_SIZE));
     }
-    //double decodeRLEEndTime = CycleTimer::currentSeconds();
 
-    // blocks stay in their threads
     log(rank, "undoing DPCM()...\n");
     unDPCM(decodedQuantizedBlocks);
 
-    // blocks stay in their threads
     log(rank, "undoing quantize()...\n");
-    //double unquantizeStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> unquantizedBlocks;
     for (auto decodedQuantizedBlock : decodedQuantizedBlocks) {
         unquantizedBlocks.push_back(unquantize(decodedQuantizedBlock, MACROBLOCK_SIZE, true));
     }
-    //double unquantizeEndTime = CycleTimer::currentSeconds();
 
-    // blocks stay in their threads
     log(rank, "undoing DCT()...\n");
-    //double idctStartTime = CycleTimer::currentSeconds();
     std::vector<std::vector<std::shared_ptr<PixelYcbcr>>> idcts;
     for (auto unquantized : unquantizedBlocks) {
         idcts.push_back(IDCT(unquantized, MACROBLOCK_SIZE, true));
     }
-    //double idctEndTime = CycleTimer::currentSeconds();
 
-    // TODO: GATHER
-    // collect all blocks back into a vector of blocks in master
     log(rank, "undoing convertYcbcrToBlocks()...\n");
-    //double convertBlocksToYcbcrStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageBlocks> imageBlocksIdct(new ImageBlocks);
     imageBlocksIdct->blocks = idcts;
     imageBlocksIdct->width = width;
     imageBlocksIdct->height = height;
     std::shared_ptr<ImageYcbcr> imgFromBlocks = convertBlocksToYcbcr(imageBlocksIdct, MACROBLOCK_SIZE);
-    //double convertBlocksToYcbcrEndTime = CycleTimer::currentSeconds();
-
-    // TODO: SCATTER
-    // give each thread an image with a section of the pixels to convert to rgb
     log(rank, "undoing convertRgbToYcbcr()...\n");
-    //double convertYcbcrToRgbStartTime = CycleTimer::currentSeconds();
     std::shared_ptr<ImageRgb> imageRgbRecovered = convertYcbcrToRgb(imgFromBlocks);
-    //double convertYcbcrToRgbEndTime = CycleTimer::currentSeconds();
 
-    // each thread will continue and convert its image back to bytes
     log(rank, "undoing convertImageToBytes()...\n");
-    //double convertImageToBytesStartTime = CycleTimer::currentSeconds();
     std::vector<unsigned char> imgRecovered = convertImageToBytes(imageRgbRecovered);
-    //double convertImageToBytesEndTime = CycleTimer::currentSeconds();
 
-    // TODO: GATHER
-    // collect all bytes back into the full bytes vector for the image in master
     if (rank == 0) {
-        //double encodeImageStartTime = CycleTimer::currentSeconds();
         error = lodepng::encode(outfile, imgRecovered, width, height);
-        //double encodeImageEndTime = CycleTimer::currentSeconds();
 
-        //if there's an error, display it
         if(error) {
             std::cout << "encoder error " << error << ": "<< lodepng_error_text(error) << std::endl;
         } else {
@@ -658,7 +629,8 @@ void encodePar(const char* infile, const char* outfile, const char* compressedFi
     MPI_Type_free(&MPI_DoubleVector);
     MPI_Type_free(&MPI_EncodedBlockColor);
     MPI_Type_free(&MPI_EncodedBlock);
-    // end parallel area
+
+    // End parallel area
     MPI_Finalize();
 
     // Print statistics
