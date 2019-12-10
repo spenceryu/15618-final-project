@@ -27,10 +27,12 @@ function run_seq {
     then
         for filename in raw_images/*.png; do
             IMAGE=$(basename $filename ".png")
+            echo ""
             echo "Compressing $IMAGE"
             ./seq-mpi-bin $IMAGE
         done
     else
+        echo ""
         echo "Compressing $IMAGE"
         ./seq-mpi-bin $IMAGE
     fi
@@ -42,10 +44,12 @@ function run_mpi {
     then
         for filename in raw_images/*.png; do
             IMAGE=$(basename $filename ".png")
+            echo ""
             echo "Compressing $IMAGE"
             mpirun -np "$1" ./seq-mpi-bin $IMAGE -p
         done
     else
+        echo ""
         echo "Compressing $IMAGE"
         mpirun -np "$1" ./seq-mpi-bin $IMAGE -p
     fi
@@ -57,10 +61,12 @@ function run_omp {
     then
         for filename in raw_images/*.png; do
             IMAGE=$(basename $filename ".png")
+            echo ""
             echo "Compressing $IMAGE"
             ./omp-bin $IMAGE -o
         done
     else
+        echo ""
         echo "Compressing $IMAGE"
         ./omp-bin $IMAGE -o
     fi

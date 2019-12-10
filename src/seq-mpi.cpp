@@ -325,10 +325,10 @@ void encodeMpi(const char* infile, const char* outfile, const char* compressedFi
     log(rank, "SCATTER\n");
     log(rank, "convertBytesToImage()...\n");
     double convertBytesToImageStartTime = CycleTimer::currentSeconds();
-    int numPixels;
-    int len = bytes.size() / numTasks;
-    int start = rank * len;
-    int end = (rank + 1) * len;
+    int numPixels = bytes.size() / 4;
+    int len = numPixels / numTasks;
+    int start = rank * len * 4;
+    int end = (rank + 1) * len * 4;
     // handle rounding issues
     if (rank == numTasks - 1) {
         end = bytes.size();
